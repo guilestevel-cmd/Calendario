@@ -138,7 +138,7 @@ function mostrarErrorConexion() {
 }
 
 async function iniciar() {
-  if (!URL_API || URL_API.includes('PON_AQUI')) {
+  if (!URL_API || URL_API.includes('https://script.google.com/macros/s/AKfycbyXSOthf8ckGUBBXy4mFNjYKL7xaVZkzx8cIS6Zhkkptlvu9-DLb4YLR1DoE7XUv-m8lQ/exec')) {
     document.getElementById('app').innerHTML = plantillaConfigPendiente();
     return;
   }
