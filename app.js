@@ -1,9 +1,4 @@
-/* =============================================================
-   PLANEA — configuración con soporte de filtrado por Grado/Curso
-   ============================================================= */
 const URL_API = 'https://script.google.com/macros/s/AKfycbzYqtU6jbQaGrn_KRFRwXWDI3IqO1l32LSqb2VXDZJ2DkmwZ4rg-UGvqy97RDxRl4g/exec';
-
-/* ============================== constantes ============================== */
 
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const DIAS_CORTOS = ['Lu','Ma','Mi','Ju','Vi','Sa','Do'];
@@ -15,8 +10,6 @@ const ROLES = {
 };
 const TIPO_FIJO_POR_ROL = { comision: 'evento', profesor: 'tarea', admin: null };
 
-/* ============================== estado global ============================== */
-
 const estado = {
   cargando: true,
   hayUsuarios: null,
@@ -24,7 +17,7 @@ const estado = {
   unidades: [],
   actividades: [],
   usuarios: [],
-  configuracion: { nombreColegio: 'Instituto de Educación Media' },
+  configuracion: { nombreColegio: 'Instituto de Educación Media', grados: '' },
   vista: 'calendario',
   unidadActivaId: null,
   unidadReporteId: null,
@@ -44,8 +37,6 @@ try {
   const guardada = localStorage.getItem('planea-sesion');
   if (guardada) estado.sesion = JSON.parse(guardada);
 } catch (e) {}
-
-/* ============================== utilidades =============================== */
 
 function pad(n) { return String(n).padStart(2, '0'); }
 function formatFecha(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
@@ -90,6 +81,11 @@ function enRango(d, fechaInicio, fechaFin) {
 function obtenerGradosDisponibles() {
   const acts = actividadesUnidadActual();
   const gradosSet = new Set();
+  if (estado.configuracion.grados) {
+    estado.configuracion.grados.split(',').forEach(g => {
+      if (g.trim()) gradosSet.add(g.trim());
+    });
+  }
   acts.forEach(a => {
     if (a.curso && a.curso.trim() !== '') {
       gradosSet.add(a.curso.trim());
@@ -101,7 +97,6 @@ function obtenerGradosDisponibles() {
 function getEstadoDiaFiltrado(fechaStr, actividades, gradoFiltro) {
   const delDia = actividades.filter(a => a.fecha === fechaStr);
   const eventos = delDia.filter(a => a.tipo === 'evento');
-  
   const tareas = delDia.filter(a => {
     if (a.tipo !== 'tarea') return false;
     if (gradoFiltro === 'TODOS') return true;
@@ -115,15 +110,7 @@ function getEstadoDiaFiltrado(fechaStr, actividades, gradoFiltro) {
   if (ocupadas >= capacidad) esta = 'lleno';
   else if (ocupadas >= Math.ceil(capacidad / 2)) esta = 'medio';
 
-  return { 
-    delDiaVisible: [...eventos, ...tareas], 
-    eventos, 
-    tareas, 
-    tieneEvento, 
-    capacidad, 
-    ocupadas, 
-    estado: esta 
-  };
+  return { delDiaVisible: [...eventos, ...tareas], eventos, tareas, tieneEvento, capacidad, ocupadas, estado: esta };
 }
 
 function puedeAgregar(tipo, estadoDiaReal) {
@@ -141,8 +128,6 @@ function puedeAgregar(tipo, estadoDiaReal) {
 function unidadActiva() { return estado.unidades.find(u => u.id === estado.unidadActivaId) || null; }
 function actividadesUnidadActual() { return estado.actividades.filter(a => a.unidadId === estado.unidadActivaId); }
 function unidadesOrdenadas() { return [...estado.unidades].sort((a, b) => a.fechaInicio.localeCompare(b.fechaInicio)); }
-
-/* ============================== conexión a la API =============================== */
 
 async function api(recurso, opciones) {
   opciones = opciones || {};
@@ -177,7 +162,7 @@ async function iniciar() {
     estado.actividades = (Array.isArray(actividades) ? actividades : [])
       .filter(a => a && a.id && a.unidadId && fechaValida(a.fecha) && a.tipo && a.titulo);
     
-    estado.configuracion = Object.assign({ nombreColegio: 'Instituto de Educación Media' }, configuracion || {});
+    estado.configuracion = Object.assign({ nombreColegio: 'Instituto de Educación Media', grados: '' }, configuracion || {});
     if (estado.unidades.length) {
       const primera = unidadesOrdenadas()[0];
       estado.unidadActivaId = primera.id;
@@ -195,30 +180,25 @@ async function iniciar() {
   }
 }
 
-/* ============================== autenticación ============================== */
-
 async function manejarEnvioPrimerAdmin(ev) {
   ev.preventDefault();
   const nombre = document.getElementById('campo-nombre-primer-admin').value.trim();
   const usuario = document.getElementById('campo-usuario-primer-admin').value.trim();
   const contrasena = document.getElementById('campo-contrasena-primer-admin').value;
   const errorEl = document.getElementById('error-primer-admin');
-
-  if (!nombre || !usuario) { errorEl.innerHTML = mensajeError('Completa tu nombre y un nombre de usuario.'); return; }
-  if (contrasena.length < 4) { errorEl.innerHTML = mensajeError('La contraseña debe tener al menos 4 caracteres.'); return; }
+  if (!nombre || !usuario) { errorEl.innerHTML = mensajeError('Completa los campos.'); return; }
+  if (contrasena.length < 4) { errorEl.innerHTML = mensajeError('Mínimo 4 caracteres.'); return; }
 
   try {
     const nuevo = { id: generarId(), nombre, usuario, contrasena, rol: 'admin' };
     const resultado = await api('usuarios', { metodo: 'POST', accion: 'crear', datos: nuevo });
-    if (!resultado.ok) { errorEl.innerHTML = mensajeError(resultado.error || 'No se pudo crear la cuenta.'); return; }
+    if (!resultado.ok) { errorEl.innerHTML = mensajeError(resultado.error); return; }
     estado.usuarios = resultado.lista;
     estado.hayUsuarios = true;
     estado.sesion = { usuario, nombre, rol: 'admin' };
     try { localStorage.setItem('planea-sesion', JSON.stringify(estado.sesion)); } catch (e) {}
     render();
-  } catch (e) {
-    errorEl.innerHTML = mensajeError('Error de conexión.');
-  }
+  } catch (e) { errorEl.innerHTML = mensajeError('Error de conexión.'); }
 }
 
 async function manejarEnvioLogin(ev) {
@@ -230,13 +210,11 @@ async function manejarEnvioLogin(ev) {
 
   try {
     const resultado = await api('sesion', { metodo: 'POST', accion: 'iniciar', datos: { usuario, contrasena } });
-    if (!resultado.ok) { errorEl.innerHTML = mensajeError(resultado.error || 'Datos incorrectos.'); return; }
+    if (!resultado.ok) { errorEl.innerHTML = mensajeError(resultado.error); return; }
     estado.sesion = { usuario: resultado.usuario, nombre: resultado.nombre, rol: resultado.rol };
     try { localStorage.setItem('planea-sesion', JSON.stringify(estado.sesion)); } catch (e) {}
     render();
-  } catch (e) {
-    errorEl.innerHTML = mensajeError('Error de conexión.');
-  }
+  } catch (e) { errorEl.innerHTML = mensajeError('Error de conexión.'); }
 }
 
 function cerrarSesion() {
@@ -246,8 +224,6 @@ function cerrarSesion() {
 }
 function cambiarVista(v) { estado.vista = v; render(); }
 
-/* ============================== acciones de unidades =============================== */
-
 function seleccionarUnidadActiva(id) {
   estado.unidadActivaId = id;
   const u = estado.unidades.find(x => x.id === id);
@@ -256,21 +232,9 @@ function seleccionarUnidadActiva(id) {
   render();
 }
 
-function cambiarFiltroGradoCalendario(grado) {
-  estado.gradoFiltroCalendario = grado;
-  render();
-}
-
-function abrirFormUnidad(id) {
-  unidadEnEdicion = id ? estado.unidades.find(u => u.id === id) : null;
-  estado.formUnidadAbierto = true;
-  render();
-}
-function cerrarFormUnidad() {
-  estado.formUnidadAbierto = false;
-  unidadEnEdicion = null;
-  render();
-}
+function cambiarFiltroGradoCalendario(grado) { estado.gradoFiltroCalendario = grado; render(); }
+function abrirFormUnidad(id) { unidadEnEdicion = id ? estado.unidades.find(u => u.id === id) : null; estado.formUnidadAbierto = true; render(); }
+function cerrarFormUnidad() { estado.formUnidadAbierto = false; unidadEnEdicion = null; render(); }
 
 async function manejarEnvioUnidad(ev) {
   ev.preventDefault();
@@ -279,18 +243,12 @@ async function manejarEnvioUnidad(ev) {
   let fechaFin = document.getElementById('campo-fecha-fin-unidad').value;
   const errorEl = document.getElementById('error-form-unidad');
 
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(fechaInicio)) {
-    const [d, m, y] = fechaInicio.split('/');
-    fechaInicio = `${y}-${m}-${d}`;
-  }
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(fechaFin)) {
-    const [d, m, y] = fechaFin.split('/');
-    fechaFin = `${y}-${m}-${d}`;
-  }
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(fechaInicio)) { const [d, m, y] = fechaInicio.split('/'); fechaInicio = `${y}-${m}-${d}`; }
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(fechaFin)) { const [d, m, y] = fechaFin.split('/'); fechaFin = `${y}-${m}-${d}`; }
 
   if (!nombre) { errorEl.innerHTML = mensajeError('Escribe un nombre.'); return; }
-  if (!fechaInicio || !fechaFin) { errorEl.innerHTML = mensajeError('Indica fechas válidas.'); return; }
-  if (fechaFin < fechaInicio) { errorEl.innerHTML = mensajeError('La fecha fin no puede ser anterior.'); return; }
+  if (!fechaInicio || !fechaFin) { errorEl.innerHTML = mensajeError('Indica fechas.'); return; }
+  if (fechaFin < fechaInicio) { errorEl.innerHTML = mensajeError('Fecha fin anterior a inicio.'); return; }
 
   try {
     if (unidadEnEdicion) {
@@ -300,18 +258,10 @@ async function manejarEnvioUnidad(ev) {
       const nueva = { id: generarId(), nombre, fechaInicio, fechaFin };
       const resultado = await api('unidades', { metodo: 'POST', accion: 'crear', datos: nueva });
       estado.unidades = resultado.lista || estado.unidades;
-      if (!estado.unidadActivaId) {
-        estado.unidadActivaId = nueva.id;
-        const di = parseFecha(nueva.fechaInicio);
-        estado.mesActual = { year: di.getFullYear(), month: di.getMonth() };
-      }
+      if (!estado.unidadActivaId) { estado.unidadActivaId = nueva.id; const di = parseFecha(nueva.fechaInicio); estado.mesActual = { year: di.getFullYear(), month: di.getMonth() }; }
     }
-    estado.formUnidadAbierto = false;
-    unidadEnEdicion = null;
-    render();
-  } catch (e) {
-    errorEl.innerHTML = mensajeError('No se pudo guardar.');
-  }
+    estado.formUnidadAbierto = false; unidadEnEdicion = null; render();
+  } catch (e) { errorEl.innerHTML = mensajeError('No se pudo guardar.'); }
 }
 
 function pedirConfirmarEliminarUnidad(id) {
@@ -329,18 +279,8 @@ function pedirConfirmarEliminarUnidad(id) {
   render();
 }
 
-/* ============================== actividades =============================== */
-
-function abrirDia(fecha) {
-  estado.diaSeleccionado = fecha;
-  estado.formAbierto = false;
-  render();
-}
-function cerrarDia() {
-  estado.diaSeleccionado = null;
-  estado.formAbierto = false;
-  render();
-}
+function abrirDia(fecha) { estado.diaSeleccionado = fecha; estado.formAbierto = false; render(); }
+function cerrarDia() { estado.diaSeleccionado = null; estado.formAbierto = false; render(); }
 function mostrarFormActividad() { estado.formAbierto = true; render(); }
 function ocultarFormActividad() { estado.formAbierto = false; render(); }
 
@@ -383,11 +323,8 @@ async function manejarEnvioActividad(ev) {
     };
     const resultado = await api('actividades', { metodo: 'POST', accion: 'crear', datos: nueva });
     estado.actividades = resultado.lista || estado.actividades;
-    estado.formAbierto = false;
-    render();
-  } catch (e) {
-    errorEl.innerHTML = mensajeError('No se pudo guardar la actividad.');
-  }
+    estado.formAbierto = false; render();
+  } catch (e) { errorEl.innerHTML = mensajeError('No se pudo guardar.'); }
 }
 
 function puedeEliminarActividad(a) { return estado.sesion.rol === 'admin' || a.rol === estado.sesion.rol; }
@@ -403,8 +340,6 @@ function pedirConfirmarEliminarActividad(id) {
   };
   render();
 }
-
-/* ============================== usuarios (admin) =============================== */
 
 function elegirRolNuevoUsuario(rol) {
   rolNuevoUsuario = rol;
@@ -428,26 +363,9 @@ async function manejarEnvioUsuario(ev) {
   try {
     const nuevo = { id: generarId(), nombre, usuario, contrasena, rol: rolNuevoUsuario };
     const resultado = await api('usuarios', { metodo: 'POST', accion: 'crear', datos: nuevo });
-    if (!resultado.ok) { errorEl.innerHTML = mensajeError(resultado.error || 'No se pudo crear.'); return; }
-    estado.usuarios = resultado.lista;
-    estado.formUsuarioAbierto = false;
-    render();
-  } catch (e) {
-    errorEl.innerHTML = mensajeError('Error de conexión.');
-  }
-}
-
-function pedirConfirmarEliminarUsuario(id) {
-  const u = estado.usuarios.find(x => x.id === id);
-  if (!u) return;
-  estado.confirmar = {
-    mensaje: `¿Eliminar acceso a "${u.nombre}"?`,
-    accion: async () => {
-      const resultado = await api('usuarios', { metodo: 'POST', accion: 'eliminar', datos: { id } });
-      estado.usuarios = resultado.lista || estado.usuarios;
-    },
-  };
-  render();
+    if (!resultado.ok) { errorEl.innerHTML = mensajeError(resultado.error); return; }
+    estado.usuarios = resultado.lista; estado.formUsuarioAbierto = false; render();
+  } catch (e) { errorEl.innerHTML = mensajeError('Error de conexión.'); }
 }
 
 function mostrarFormRestablecer(id) {
@@ -470,8 +388,6 @@ function ejecutarConfirmacion() {
 }
 function cancelarConfirmacion() { estado.confirmar = null; render(); }
 
-/* ============================== reportes =============================== */
-
 function cambiarUnidadReporte(id) { estado.unidadReporteId = id; render(); }
 function cambiarGradoReporte(grado) { estado.gradoFiltroReporte = grado; render(); }
 
@@ -481,7 +397,11 @@ async function guardarNombreColegio(input) {
   await api('configuracion', { metodo: 'POST', datos: { nombreColegio: valor } });
 }
 
-/* ============================== renderizado principal =============================== */
+async function guardarGradosConfig(input) {
+  const valor = input.value.trim();
+  estado.configuracion.grados = valor;
+  await api('configuracion', { metodo: 'POST', datos: { grados: valor } });
+}
 
 function render() {
   const raiz = document.getElementById('app');
@@ -575,7 +495,6 @@ function plantillaBarra() {
     </aside>`;
 }
 
-/* ---------- calendario con selector de grado ---------- */
 function plantillaCalendario() {
   if (!estado.unidades.length) {
     return plantillaEstadoVacio('No hay unidades', 'Crea una unidad primero.', estado.sesion.rol === 'admin' ? `<button class="boton boton-primario" onclick="cambiarVista('unidades')">Crear unidad</button>` : '');
@@ -595,7 +514,6 @@ function plantillaCalendario() {
   const semanas = getMatrizMes(estado.mesActual.year, estado.mesActual.month);
   const hoy = hoyStr();
   const actividadesUnidad = actividadesUnidadActual();
-
   const opcionesUnidad = unidadesOrdenadas().map(u => `<option value="${u.id}"${u.id === unidad.id ? ' selected' : ''}>${esc(u.nombre)}</option>`).join('');
 
   const filas = semanas.map(semana => `
@@ -649,7 +567,6 @@ function cambiarMes(delta) {
   render();
 }
 
-/* ---------- panel del día ---------- */
 function plantillaPanelDia() {
   const actividadesActuales = actividadesUnidadActual();
   const info = getEstadoDiaFiltrado(estado.diaSeleccionado, actividadesActuales, estado.gradoFiltroCalendario);
@@ -719,7 +636,6 @@ function plantillaFormActividad(tipoFijo) {
     </form>`;
 }
 
-/* ---------- unidades y usuarios (estándar) ---------- */
 function plantillaUnidades() {
   const esAdmin = estado.sesion.rol === 'admin';
   const ordenadas = unidadesOrdenadas();
@@ -794,7 +710,6 @@ function plantillaUsuarios() {
     </div>`;
 }
 
-/* ---------- reporte adaptado por grado ---------- */
 function plantillaReporte() {
   if (!estado.unidades.length) return plantillaEstadoVacio('Sin unidades', 'Crea una unidad.');
   const idReporte = estado.unidadReporteId || estado.unidadActivaId || unidadesOrdenadas()[0].id;
@@ -834,6 +749,11 @@ function plantillaReporte() {
         <div><label class="etiqueta">Unidad</label><select class="selector" onchange="cambiarUnidadReporte(this.value)">${opcionesUnidad}</select></div>
         <div><label class="etiqueta">Grado</label><select class="selector" onchange="cambiarGradoReporte(this.value)">${opcionesGrados}</select></div>
         <div><label class="etiqueta">Establecimiento</label><input class="campo" value="${esc(nombreColegio)}" onchange="guardarNombreColegio(this)"></div>
+        ${estado.sesion.rol === 'admin' ? `
+        <div>
+          <label class="etiqueta">Grados oficiales (separados por coma)</label>
+          <input class="campo" value="${esc(estado.configuracion.grados || '')}" placeholder="Ej. 1ro Básico, 4to Bach" onchange="guardarGradosConfig(this)">
+        </div>` : ''}
       </div>
 
       ${unidad ? `
