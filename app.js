@@ -17,20 +17,23 @@ const estado = {
   unidades: [],
   actividades: [],
   usuarios: [],
-  configuracion: { nombreColegio: 'Instituto de Educación Media', grados: '' },
+  grados: [], // Lista formal de grados
+  configuracion: { nombreColegio: 'Instituto de Educación Media' },
   vista: 'calendario',
   unidadActivaId: null,
   unidadReporteId: null,
-  gradoFiltroCalendario: 'TODOS',
+  gradoActivoCalendario: '', // Grado seleccionado para trabajar
   gradoFiltroReporte: 'TODOS',
   mesActual: null,
   diaSeleccionado: null,
   formAbierto: false,
   formUnidadAbierto: false,
   formUsuarioAbierto: false,
+  formGradoAbierto: false,
   confirmar: null,
 };
 let unidadEnEdicion = null;
+let actividadEnEdicion = null;
 let rolNuevoUsuario = 'profesor';
 
 try {
@@ -78,29 +81,15 @@ function enRango(d, fechaInicio, fechaFin) {
   return t >= fechaInicio && t <= fechaFin;
 }
 
-function obtenerGradosDisponibles() {
-  const acts = actividadesUnidadActual();
-  const gradosSet = new Set();
-  if (estado.configuracion.grados) {
-    estado.configuracion.grados.split(',').forEach(g => {
-      if (g.trim()) gradosSet.add(g.trim());
-    });
-  }
-  acts.forEach(a => {
-    if (a.curso && a.curso.trim() !== '') {
-      gradosSet.add(a.curso.trim());
-    }
-  });
-  return Array.from(gradosSet).sort();
-}
-
-function getEstadoDiaFiltrado(fechaStr, actividades, gradoFiltro) {
+function getEstadoDiaGrado(fechaStr, actividades, gradoSeleccionado) {
   const delDia = actividades.filter(a => a.fecha === fechaStr);
   const eventos = delDia.filter(a => a.tipo === 'evento');
+  
+  // Tareas que coinciden con el grado activo o eventos generales
   const tareas = delDia.filter(a => {
     if (a.tipo !== 'tarea') return false;
-    if (gradoFiltro === 'TODOS') return true;
-    return a.curso && a.curso.trim().toLowerCase() === gradoFiltro.toLowerCase();
+    if (!gradoSeleccionado) return true;
+    return a.curso && a.curso.trim().toLowerCase() === gradoSeleccionado.trim().toLowerCase();
   });
 
   const tieneEvento = eventos.length > 0;
@@ -115,12 +104,12 @@ function getEstadoDiaFiltrado(fechaStr, actividades, gradoFiltro) {
 
 function puedeAgregar(tipo, estadoDiaReal) {
   if (tipo === 'evento') {
-    if (estadoDiaReal.tieneEvento) return { ok: false, msg: 'Este día ya tiene un evento de comisión asignado.' };
-    if (estadoDiaReal.tareas.length > 2) return { ok: false, msg: 'Este día ya tiene más de 2 tareas generales asignadas.' };
+    if (estadoDiaReal.tieneEvento) return { ok: false, msg: 'Este día ya tiene un evento institucional.' };
+    if (estadoDiaReal.tareas.length > 2) return { ok: false, msg: 'Demasiadas tareas este día.' };
     return { ok: true };
   }
   if (estadoDiaReal.ocupadas >= estadoDiaReal.capacidad) {
-    return { ok: false, msg: `Este día alcanzó el máximo de ${estadoDiaReal.capacidad} actividades de entrega.` };
+    return { ok: false, msg: `Este día alcanzó el límite de ${estadoDiaReal.capacidad} actividades para este grado.` };
   }
   return { ok: true };
 }
@@ -154,15 +143,21 @@ async function iniciar() {
     estado.usuarios = Array.isArray(usuariosPublicos) ? usuariosPublicos : [];
     estado.hayUsuarios = estado.usuarios.length > 0;
 
-    const [unidades, actividades, configuracion] = await Promise.all([
-      api('unidades'), api('actividades'), api('configuracion'),
+    const [unidades, actividades, grados, configuracion] = await Promise.all([
+      api('unidades'), api('actividades'), api('grados'), api('configuracion'),
     ]);
     estado.unidades = (Array.isArray(unidades) ? unidades : [])
       .filter(u => u && u.id && u.nombre && fechaValida(u.fechaInicio) && fechaValida(u.fechaFin));
     estado.actividades = (Array.isArray(actividades) ? actividades : [])
       .filter(a => a && a.id && a.unidadId && fechaValida(a.fecha) && a.tipo && a.titulo);
+    estado.grados = Array.isArray(grados) ? grados : [];
     
-    estado.configuracion = Object.assign({ nombreColegio: 'Instituto de Educación Media', grados: '' }, configuracion || {});
+    // Establecer el primer grado por defecto si existe
+    if (estado.grados.length > 0 && !estado.gradoActivoCalendario) {
+      estado.gradoActivoCalendario = estado.grados[0].nombre;
+    }
+
+    estado.configuracion = Object.assign({ nombreColegio: 'Instituto de Educación Media' }, configuracion || {});
     if (estado.unidades.length) {
       const primera = unidadesOrdenadas()[0];
       estado.unidadActivaId = primera.id;
@@ -232,7 +227,11 @@ function seleccionarUnidadActiva(id) {
   render();
 }
 
-function cambiarFiltroGradoCalendario(grado) { estado.gradoFiltroCalendario = grado; render(); }
+function cambiarGradoActivoCalendario(grado) {
+  estado.gradoActivoCalendario = grado;
+  render();
+}
+
 function abrirFormUnidad(id) { unidadEnEdicion = id ? estado.unidades.find(u => u.id === id) : null; estado.formUnidadAbierto = true; render(); }
 function cerrarFormUnidad() { estado.formUnidadAbierto = false; unidadEnEdicion = null; render(); }
 
@@ -279,10 +278,58 @@ function pedirConfirmarEliminarUnidad(id) {
   render();
 }
 
-function abrirDia(fecha) { estado.diaSeleccionado = fecha; estado.formAbierto = false; render(); }
-function cerrarDia() { estado.diaSeleccionado = null; estado.formAbierto = false; render(); }
-function mostrarFormActividad() { estado.formAbierto = true; render(); }
-function ocultarFormActividad() { estado.formAbierto = false; render(); }
+/* ============================== GESTIÓN DE GRADOS =============================== */
+function abrirFormGrado() { estado.formGradoAbierto = true; render(); }
+function cerrarFormGrado() { estado.formGradoAbierto = false; render(); }
+
+async function manejarEnvioGrado(ev) {
+  ev.preventDefault();
+  const nombre = document.getElementById('campo-nombre-grado').value.trim();
+  const errorEl = document.getElementById('error-form-grado');
+  if (!nombre) { errorEl.innerHTML = mensajeError('Escribe el nombre del grado.'); return; }
+
+  try {
+    const nuevo = { id: generarId(), nombre };
+    const resultado = await api('grados', { metodo: 'POST', accion: 'crear', datos: nuevo });
+    if (!resultado.ok) { errorEl.innerHTML = mensajeError(resultado.error); return; }
+    estado.grados = resultado.lista;
+    if (!estado.gradoActivoCalendario && estado.grados.length > 0) {
+      estado.gradoActivoCalendario = estado.grados[0].nombre;
+    }
+    estado.formGradoAbierto = false;
+    render();
+  } catch (e) { errorEl.innerHTML = mensajeError('Error al guardar grado.'); }
+}
+
+function pedirConfirmarEliminarGrado(id) {
+  const g = estado.grados.find(x => x.id === id);
+  if (!g) return;
+  estado.confirmar = {
+    mensaje: `¿Eliminar el grado "${g.nombre}"?`,
+    accion: async () => {
+      const resultado = await api('grados', { metodo: 'POST', accion: 'eliminar', datos: { id } });
+      estado.grados = resultado.lista || [];
+      if (estado.gradoActivoCalendario === g.nombre) {
+        estado.gradoActivoCalendario = estado.grados.length > 0 ? estado.grados[0].nombre : '';
+      }
+    },
+  };
+  render();
+}
+
+/* ============================== ACTIVIDADES =============================== */
+function abrirDia(fecha) { estado.diaSeleccionado = fecha; estado.formAbierto = false; actividadEnEdicion = null; render(); }
+function cerrarDia() { estado.diaSeleccionado = null; estado.formAbierto = false; actividadEnEdicion = null; render(); }
+function mostrarFormActividad(idActividad) {
+  if (idActividad) {
+    actividadEnEdicion = estado.actividades.find(a => a.id === idActividad);
+  } else {
+    actividadEnEdicion = null;
+  }
+  estado.formAbierto = true;
+  render();
+}
+function ocultarFormActividad() { estado.formAbierto = false; actividadEnEdicion = null; render(); }
 
 function alternarTipoActividad(tipo) {
   document.getElementById('campo-tipo').value = tipo;
@@ -296,17 +343,23 @@ async function manejarEnvioActividad(ev) {
   const tipo = document.getElementById('campo-tipo').value;
   const titulo = document.getElementById('campo-titulo-actividad').value.trim();
   const materia = tipo === 'tarea' ? document.getElementById('campo-materia').value.trim() : '';
-  const curso = tipo === 'tarea' ? document.getElementById('campo-curso').value.trim() : '';
+  
+  // El grado se toma automáticamente del grado seleccionado en el calendario superior
+  const curso = tipo === 'tarea' ? estado.gradoActivoCalendario : '';
   const descripcion = document.getElementById('campo-descripcion-actividad').value.trim();
   const errorEl = document.getElementById('error-form-actividad');
 
   if (!titulo) { errorEl.innerHTML = mensajeError('Escribe un título.'); return; }
-  
+  if (tipo === 'tarea' && !curso) {
+    errorEl.innerHTML = mensajeError('Debes seleccionar un grado activo en el menú superior antes de agregar una tarea.');
+    return;
+  }
+
   const actividadesActuales = actividadesUnidadActual();
   const estadoDiaReal = {
-    delDia: actividadesActuales.filter(a => a.fecha === estado.diaSeleccionado),
-    eventos: actividadesActuales.filter(a => a.fecha === estado.diaSeleccionado && a.tipo === 'evento'),
-    tareas: actividadesActuales.filter(a => a.fecha === estado.diaSeleccionado && a.tipo === 'tarea'),
+    delDia: actividadesActuales.filter(a => a.fecha === estado.diaSeleccionado && (!actividadEnEdicion || a.id !== actividadEnEdicion.id)),
+    eventos: actividadesActuales.filter(a => a.fecha === estado.diaSeleccionado && a.tipo === 'evento' && (!actividadEnEdicion || a.id !== actividadEnEdicion.id)),
+    tareas: actividadesActuales.filter(a => a.fecha === estado.diaSeleccionado && a.tipo === 'tarea' && (!actividadEnEdicion || a.id !== actividadEnEdicion.id)),
   };
   estadoDiaReal.tieneEvento = estadoDiaReal.eventos.length > 0;
   estadoDiaReal.ocupadas = estadoDiaReal.tareas.length;
@@ -316,15 +369,27 @@ async function manejarEnvioActividad(ev) {
   if (!chequeo.ok) { errorEl.innerHTML = mensajeError(chequeo.msg); return; }
 
   try {
-    const nueva = {
-      id: generarId(), unidadId: estado.unidadActivaId, fecha: estado.diaSeleccionado,
-      tipo, titulo, descripcion, materia, curso,
-      rol: estado.sesion.rol, responsable: estado.sesion.nombre, creadoEn: Date.now(),
-    };
-    const resultado = await api('actividades', { metodo: 'POST', accion: 'crear', datos: nueva });
-    estado.actividades = resultado.lista || estado.actividades;
-    estado.formAbierto = false; render();
-  } catch (e) { errorEl.innerHTML = mensajeError('No se pudo guardar.'); }
+    if (actividadEnEdicion) {
+      const editada = Object.assign({}, actividadEnEdicion, {
+        tipo, titulo, descripcion, materia, curso
+      });
+      const resultado = await api('actividades', { metodo: 'POST', accion: 'editar', datos: editada });
+      estado.actividades = resultado.lista || estado.actividades;
+    } else {
+      const nueva = {
+        id: generarId(), unidadId: estado.unidadActivaId, fecha: estado.diaSeleccionado,
+        tipo, titulo, descripcion, materia, curso,
+        rol: estado.sesion.rol, responsable: estado.sesion.nombre, creadoEn: Date.now(),
+      };
+      const resultado = await api('actividades', { metodo: 'POST', accion: 'crear', datos: nueva });
+      estado.actividades = resultado.lista || estado.actividades;
+    }
+    estado.formAbierto = false;
+    actividadEnEdicion = null;
+    render();
+  } catch (e) {
+    errorEl.innerHTML = mensajeError('No se pudo guardar la actividad.');
+  }
 }
 
 function puedeEliminarActividad(a) { return estado.sesion.rol === 'admin' || a.rol === estado.sesion.rol; }
@@ -341,6 +406,7 @@ function pedirConfirmarEliminarActividad(id) {
   render();
 }
 
+/* ============================== USUARIOS =============================== */
 function elegirRolNuevoUsuario(rol) {
   rolNuevoUsuario = rol;
   document.querySelectorAll('#form-usuario .opcion-rol').forEach(btn => {
@@ -397,12 +463,7 @@ async function guardarNombreColegio(input) {
   await api('configuracion', { metodo: 'POST', datos: { nombreColegio: valor } });
 }
 
-async function guardarGradosConfig(input) {
-  const valor = input.value.trim();
-  estado.configuracion.grados = valor;
-  await api('configuracion', { metodo: 'POST', datos: { grados: valor } });
-}
-
+/* ============================== RENDER PRINCIPAL =============================== */
 function render() {
   const raiz = document.getElementById('app');
   if (estado.cargando) { raiz.innerHTML = `<div class="pantalla-carga"><i data-lucide="loader-2" class="girando"></i><p>Cargando planeador...</p></div>`; return; }
@@ -456,6 +517,7 @@ function plantillaApp() {
       <main class="contenido">
         ${estado.vista === 'calendario' ? plantillaCalendario() : ''}
         ${estado.vista === 'unidades' ? plantillaUnidades() : ''}
+        ${estado.vista === 'grados' ? plantillaGrados() : ''}
         ${estado.vista === 'usuarios' ? plantillaUsuarios() : ''}
         ${estado.vista === 'reporte' ? plantillaReporte() : ''}
       </main>
@@ -472,7 +534,10 @@ function plantillaBarra() {
     { clave: 'unidades', label: 'Unidades', icono: 'book-open' },
     { clave: 'reporte', label: 'Reporte', icono: 'printer' },
   ];
-  if (estado.sesion.rol === 'admin') items.push({ clave: 'usuarios', label: 'Usuarios', icono: 'key-round' });
+  if (estado.sesion.rol === 'admin') {
+    items.push({ clave: 'grados', label: 'Grados', icono: 'graduation-cap' });
+    items.push({ clave: 'usuarios', label: 'Usuarios', icono: 'key-round' });
+  }
   return `
     <aside class="barra no-imprimir">
       <div class="barra-marca"><i data-lucide="calendar-days"></i><span>Planea</span></div>
@@ -502,9 +567,16 @@ function plantillaCalendario() {
   const unidad = unidadActiva();
   if (!unidad) return plantillaEstadoVacio('Elige una unidad', 'Selecciona una unidad.');
 
-  const gradosDisponibles = obtenerGradosDisponibles();
-  const opcionesGrados = `<option value="TODOS"${estado.gradoFiltroCalendario === 'TODOS' ? ' selected' : ''}>Todos los grados (General)</option>` +
-    gradosDisponibles.map(g => `<option value="${esc(g)}"${estado.gradoFiltroCalendario === g ? ' selected' : ''}>${esc(g)}</option>`).join('');
+  if (estado.grados.length === 0) {
+    return plantillaEstadoVacio('No hay grados configurados', estado.sesion.rol === 'admin' ? 'El administrador debe agregar los grados oficiales en la sección Grados.' : 'Pide a Administración que registre los grados del establecimiento.');
+  }
+
+  // Asegurar selección de grado si está vacío
+  if (!estado.gradoActivoCalendario && estado.grados.length > 0) {
+    estado.gradoActivoCalendario = estado.grados[0].nombre;
+  }
+
+  const opcionesGrados = estado.grados.map(g => `<option value="${esc(g.nombre)}"${estado.gradoActivoCalendario === g.nombre ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('');
 
   const inicio = parseFecha(unidad.fechaInicio);
   const fin = parseFecha(unidad.fechaFin);
@@ -524,7 +596,7 @@ function plantillaCalendario() {
         const activo = enRango(d, unidad.fechaInicio, unidad.fechaFin);
         if (!activo) return `<div class="celda-dia celda-inactiva"><span class="numero-dia">${d.getDate()}</span></div>`;
         
-        const info = getEstadoDiaFiltrado(fechaStr, actividadesUnidad, estado.gradoFiltroCalendario);
+        const info = getEstadoDiaGrado(fechaStr, actividadesUnidad, estado.gradoActivoCalendario);
         return `
           <button class="celda-dia celda-${info.estado}${fechaStr === hoy ? ' celda-hoy' : ''}" onclick="abrirDia('${fechaStr}')">
             ${info.tieneEvento ? `<i data-lucide="flag" class="marca-evento" style="width:11px;height:11px"></i>` : ''}
@@ -539,12 +611,12 @@ function plantillaCalendario() {
       <div class="vista-encabezado">
         <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;">
           <div>
-            <label class="etiqueta-inline">Unidad</label>
+            <label class="etiqueta-inline">Unidad Activa</label>
             <select class="selector" onchange="seleccionarUnidadActiva(this.value)">${opcionesUnidad}</select>
           </div>
           <div>
-            <label class="etiqueta-inline">Trabajar en Grado / Curso</label>
-            <select class="selector" onchange="cambiarFiltroGradoCalendario(this.value)">${opcionesGrados}</select>
+            <label class="etiqueta-inline">Trabajando en Grado</label>
+            <select class="selector" onchange="cambiarGradoActivoCalendario(this.value)">${opcionesGrados}</select>
           </div>
         </div>
         <div class="nav-mes">
@@ -569,7 +641,7 @@ function cambiarMes(delta) {
 
 function plantillaPanelDia() {
   const actividadesActuales = actividadesUnidadActual();
-  const info = getEstadoDiaFiltrado(estado.diaSeleccionado, actividadesActuales, estado.gradoFiltroCalendario);
+  const info = getEstadoDiaGrado(estado.diaSeleccionado, actividadesActuales, estado.gradoActivoCalendario);
   const tipoFijo = TIPO_FIJO_POR_ROL[estado.sesion.rol];
   const items = info.delDiaVisible;
 
@@ -582,10 +654,15 @@ function plantillaPanelDia() {
         ${a.descripcion ? `<p class="item-descripcion">${esc(a.descripcion)}</p>` : ''}
         <p class="item-responsable">${ROLES[a.rol] ? ROLES[a.rol].label : esc(a.rol)} · ${esc(a.responsable)}</p>
       </div>
-      ${puedeEliminarActividad(a) ? `<button class="item-eliminar" onclick="pedirConfirmarEliminarActividad('${a.id}')"><i data-lucide="trash-2" style="width:14px;height:14px"></i></button>` : ''}
+      <div style="display:flex;gap:4px;">
+        ${puedeEliminarActividad(a) ? `
+          <button class="item-eliminar" onclick="mostrarFormActividad('${a.id}')" title="Editar"><i data-lucide="pencil" style="width:14px;height:14px"></i></button>
+          <button class="item-eliminar" onclick="pedirConfirmarEliminarActividad('${a.id}')" title="Eliminar"><i data-lucide="trash-2" style="width:14px;height:14px"></i></button>
+        ` : ''}
+      </div>
     </div>`).join('');
 
-  let cuerpoAgregar = estado.formAbierto ? plantillaFormActividad(tipoFijo) : `<button class="boton boton-secundario boton-ancho" onclick="mostrarFormActividad()"><i data-lucide="plus"></i> Agregar actividad para este grado</button>`;
+  let cuerpoAgregar = estado.formAbierto ? plantillaFormActividad(tipoFijo) : `<button class="boton boton-secundario boton-ancho" onclick="mostrarFormActividad(null)"><i data-lucide="plus"></i> Agregar actividad para ${esc(estado.gradoActivoCalendario)}</button>`;
 
   return `
     <div class="superposicion" onclick="cerrarDia()">
@@ -593,7 +670,7 @@ function plantillaPanelDia() {
         <div class="panel-encabezado">
           <div>
             <p class="panel-fecha">${formatFechaLarga(estado.diaSeleccionado)}</p>
-            <p class="panel-cupo">Grado seleccionado: <b>${esc(estado.gradoFiltroCalendario)}</b></p>
+            <p class="panel-cupo">Grado activo: <b>${esc(estado.gradoActivoCalendario)}</b></p>
           </div>
           <button class="boton-icono" onclick="cerrarDia()"><i data-lucide="x"></i></button>
         </div>
@@ -607,37 +684,35 @@ function plantillaPanelDia() {
 }
 
 function plantillaFormActividad(tipoFijo) {
-  const tipoInicial = tipoFijo || 'tarea';
+  const tipoInicial = actividadEnEdicion ? actividadEnEdicion.tipo : (tipoFijo || 'tarea');
   const selectorTipo = tipoFijo === null ? `
     <div class="selector-tipo">
-      <button type="button" id="btn-tipo-evento" class="opcion-tipo" onclick="alternarTipoActividad('evento')"><i data-lucide="flag"></i> Evento</button>
-      <button type="button" id="btn-tipo-tarea" class="opcion-tipo opcion-tipo-activa" onclick="alternarTipoActividad('tarea')"><i data-lucide="book-open"></i> Tarea</button>
+      <button type="button" id="btn-tipo-evento" class="opcion-tipo${tipoInicial === 'evento' ? ' opcion-tipo-activa' : ''}" onclick="alternarTipoActividad('evento')"><i data-lucide="flag"></i> Evento</button>
+      <button type="button" id="btn-tipo-tarea" class="opcion-tipo${tipoInicial === 'tarea' ? ' opcion-tipo-activa' : ''}" onclick="alternarTipoActividad('tarea')"><i data-lucide="book-open"></i> Tarea</button>
     </div>` : '';
-
-  const gradoSugerido = estado.gradoFiltroCalendario !== 'TODOS' ? estado.gradoFiltroCalendario : '';
 
   return `
     <form class="form-actividad" onsubmit="manejarEnvioActividad(event)">
       ${selectorTipo}
       <input type="hidden" id="campo-tipo" value="${tipoInicial}">
       <label class="etiqueta">Título</label>
-      <input class="campo" id="campo-titulo-actividad" placeholder="Nombre de la actividad">
+      <input class="campo" id="campo-titulo-actividad" value="${actividadEnEdicion ? esc(actividadEnEdicion.titulo) : ''}" placeholder="Nombre de la actividad">
       <div id="bloque-campos-tarea" style="${tipoInicial === 'tarea' ? '' : 'display:none'}">
-        <div class="fila-campos">
-          <div><label class="etiqueta">Materia</label><input class="campo" id="campo-materia" placeholder="Ej. Matemática"></div>
-          <div><label class="etiqueta">Grado / Curso</label><input class="campo" id="campo-curso" value="${esc(gradoSugerido)}" placeholder="Ej. 4to Bachillerato"></div>
-        </div>
+        <label class="etiqueta">Materia</label>
+        <input class="campo" id="campo-materia" value="${actividadEnEdicion ? esc(actividadEnEdicion.materia) : ''}" placeholder="Ej. Matemática">
+        <p style="font-size:11.5px;color:#52655f;margin-top:4px;">Asignado automáticamente al grado: <b>${esc(estado.gradoActivoCalendario)}</b></p>
       </div>
       <label class="etiqueta">Detalle o instrucciones</label>
-      <textarea class="campo campo-textarea" id="campo-descripcion-actividad" rows="3"></textarea>
+      <textarea class="campo campo-textarea" id="campo-descripcion-actividad" rows="3">${actividadEnEdicion ? esc(actividadEnEdicion.descripcion) : ''}</textarea>
       <div id="error-form-actividad"></div>
       <div class="fila-botones">
         <button type="button" class="boton boton-fantasma" onclick="ocultarFormActividad()">Cancelar</button>
-        <button type="submit" class="boton boton-primario">Guardar</button>
+        <button type="submit" class="boton boton-primario">${actividadEnEdicion ? 'Actualizar' : 'Guardar'}</button>
       </div>
     </form>`;
 }
 
+/* ============================== UNIDADES =============================== */
 function plantillaUnidades() {
   const esAdmin = estado.sesion.rol === 'admin';
   const ordenadas = unidadesOrdenadas();
@@ -659,17 +734,9 @@ function plantillaUnidades() {
   return `
     <div class="vista">
       <div class="vista-encabezado">
-        <div><h2 class="titulo-vista">Unidades y Configuración de Grados</h2></div>
+        <div><h2 class="titulo-vista">Unidades</h2></div>
         ${esAdmin ? `<button class="boton boton-primario" onclick="abrirFormUnidad(null)"><i data-lucide="plus"></i> Nueva unidad</button>` : ''}
       </div>
-
-      ${esAdmin ? `
-      <div class="tarjeta" style="margin-bottom:20px;background:#f8fafc;">
-        <label class="etiqueta" style="font-weight:600;color:#0f2b27;font-size:14px;">Grados oficiales del establecimiento (separados por coma)</label>
-        <p style="font-size:12.5px;color:#52655f;margin:4px 0 10px;">Escribe aquí los grados para que aparezcan automáticamente en los selectores de los calendarios y reportes.</p>
-        <input class="campo" value="${esc(estado.configuracion.grados || '')}" placeholder="Ej. Primero Básico, Segundo Básico, Tercero Básico, Cuarto Bachillerato" onchange="guardarGradosConfig(this)">
-      </div>` : ''}
-
       ${formHtml}
       <div class="lista-unidades">${ordenadas.map(u => `
         <div class="tarjeta-unidad">
@@ -682,6 +749,46 @@ function plantillaUnidades() {
     </div>`;
 }
 
+/* ============================== SECCIÓN GRADOS (ADMIN) =============================== */
+function plantillaGrados() {
+  if (estado.sesion.rol !== 'admin') return '';
+  const formHtml = estado.formGradoAbierto ? `
+    <form class="tarjeta form-unidad" onsubmit="manejarEnvioGrado(event)">
+      <label class="etiqueta">Nombre del grado</label>
+      <input class="campo" id="campo-nombre-grado" placeholder="Ej. Cuarto Bachillerato">
+      <div id="error-form-grado"></div>
+      <div class="fila-botones">
+        <button type="button" class="boton boton-fantasma" onclick="cerrarFormGrado()">Cancelar</button>
+        <button type="submit" class="boton boton-primario">Guardar grado</button>
+      </div>
+    </form>` : '';
+
+  return `
+    <div class="vista">
+      <div class="vista-encabezado">
+        <div>
+          <h2 class="titulo-vista">Grados del Establecimiento</h2>
+          <p class="subtitulo-vista">Gestiona la lista oficial de cursos y grados oficiales.</p>
+        </div>
+        <button class="boton boton-primario" onclick="abrirFormGrado()"><i data-lucide="plus"></i> Nuevo grado</button>
+      </div>
+      ${formHtml}
+      <div class="lista-unidades">
+        ${estado.grados.length === 0 && !estado.formGradoAbierto ? `<p style="color:var(--tinta-suave);padding:10px;">No hay grados registrados todavía.</p>` : ''}
+        ${estado.grados.map(g => `
+          <div class="tarjeta-unidad">
+            <div class="tarjeta-unidad-cuerpo" style="cursor:default;">
+              <p class="tarjeta-unidad-nombre">${esc(g.nombre)}</p>
+            </div>
+            <div class="tarjeta-unidad-acciones">
+              <button class="boton-icono boton-icono-peligro" onclick="pedirConfirmarEliminarGrado('${g.id}')" title="Eliminar"><i data-lucide="trash-2"></i></button>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+/* ============================== USUARIOS =============================== */
 function plantillaUsuarios() {
   if (estado.sesion.rol !== 'admin') return '';
   const opcionesRol = Object.entries(ROLES).map(([clave, r]) => `
@@ -720,23 +827,23 @@ function plantillaUsuarios() {
     </div>`;
 }
 
+/* ============================== REPORTE =============================== */
 function plantillaReporte() {
   if (!estado.unidades.length) return plantillaEstadoVacio('Sin unidades', 'Crea una unidad.');
   const idReporte = estado.unidadReporteId || estado.unidadActivaId || unidadesOrdenadas()[0].id;
   const unidad = estado.unidades.find(u => u.id === idReporte);
   
-  const gradosDisponibles = obtenerGradosDisponibles();
   const opcionesGrados = `<option value="TODOS"${estado.gradoFiltroReporte === 'TODOS' ? ' selected' : ''}>Todos los grados (General)</option>` +
-    gradosDisponibles.map(g => `<option value="${esc(g)}"${estado.gradoFiltroReporte === g ? ' selected' : ''}>${esc(g)}</option>`).join('');
+    estado.grados.map(g => `<option value="${esc(g.nombre)}"${estado.gradoFiltroReporte === g.nombre ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('');
 
   const items = estado.actividades.filter(a => {
     if (a.unidadId !== idReporte) return false;
     if (a.tipo === 'evento') return true; 
     if (estado.gradoFiltroReporte === 'TODOS') return true;
-    return a.curso && a.curso.trim().toLowerCase() === estado.gradoFiltroReporte.toLowerCase();
+    return a.curso && a.curso.trim().toLowerCase() === estado.gradoFiltroReporte.trim().toLowerCase();
   }).sort((a, b) => a.fecha.localeCompare(b.fecha));
 
-  const opcionesUnidad = unidadesOrdenadas().map(u => `<option value="${u.id}"${u.id === idReporte ? ' selected' : ''}>${esc(u.nombre)}</option>`).join('');
+  const opcionesUnidad = unidadesOrdenadas().map(u => `<option value="${u.id}"${u.id === unidad.id ? ' selected' : ''}>${esc(u.nombre)}</option>`).join('');
   const nombreColegio = estado.configuracion.nombreColegio || '';
 
   const filasTabla = items.map(a => `
