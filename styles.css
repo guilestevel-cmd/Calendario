@@ -228,3 +228,149 @@ input, select, textarea { font-family: inherit; }
   .controles-reporte { flex-direction: column; gap: 12px; }
   .hoja-reporte { padding: 22px; }
 }
+/* Efecto de clic y retroalimentación táctil en todos los botones de la app */
+button, .boton, .barra-item, .celda-dia, .opcion-tipo, .opcion-rol, .item-eliminar, .boton-icono, .tarjeta-unidad {
+  transition: transform 0.08s ease, background-color 0.1s ease, box-shadow 0.1s ease !important;
+}
+
+button:active, .boton:active, .barra-item:active, .celda-dia:active, .opcion-tipo:active, .opcion-rol:active, .boton-icono:active {
+  transform: scale(0.96) !important;
+  filter: brightness(0.92);
+}
+
+.opcion-rol, .opcion-tipo {
+  cursor: pointer;
+}
+
+.opcion-rol-activa, .opcion-tipo-activa {
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.15);
+}
+/* ================================================================= */
+/* MEDIA QUERIES & DISEÑO RESPONSIVO PARA MÓVILES Y TABLETS          */
+/* ================================================================= */
+
+@media (max-width: 768px) {
+  /* Contenedor general en columna para aprovechar toda la pantalla */
+  .cascaron {
+    flex-direction: column !important;
+    height: auto !important;
+    min-height: 100vh;
+  }
+
+  /* Barra lateral transformada en barra de navegación superior horizontal o flotante */
+  .barra {
+    width: 100% !important;
+    height: auto !important;
+    flex-direction: row !important;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px !important;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  }
+
+  .barra-marca {
+    display: none; /* Ocultamos el logo grande para ahorrar espacio en móviles */
+  }
+
+  .barra-nav {
+    display: flex;
+    flex-direction: row;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .barra-item {
+    padding: 8px 10px !important;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  
+  .barra-item span {
+    display: none; /* En pantallas muy pequeñas mostramos solo los íconos de la barra para mayor limpieza */
+  }
+
+  .barra-usuario {
+    padding: 4px !important;
+    border-top: none !important;
+  }
+  
+  .barra-usuario-info > div {
+    display: none; /* Oculta rol y nombre largo en barra superior móvil, deja solo el ícono o salida */
+  }
+
+  /* Contenido principal adaptado */
+  .contenido {
+    padding: 12px !important;
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+
+  /* Vistas y encabezados apilados */
+  .vista-encabezado {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 12px;
+  }
+
+  .vista-encabezado > div:first-child {
+    width: 100%;
+  }
+
+  .vista-encabezado select, .vista-encabezado input {
+    width: 100% !important;
+  }
+
+  /* Calendario adaptado a celdas táctiles cómodas */
+  .celda-dia {
+    min-height: 52px !important; /* Altura cómoda para tocar con el dedo */
+    padding: 4px !important;
+  }
+
+  .numero-dia {
+    font-size: 13.5px;
+  }
+
+  .conteo-dia {
+    font-size: 9.5px;
+    padding: 1px 3px;
+  }
+
+  /* Paneles flotantes (Modales / Días) adaptados a pantalla completa móvil */
+  .panel {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 85vh !important;
+    max-height: 85vh !important;
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin: 0;
+  }
+
+  .superposicion {
+    align-items: flex-end !important; /* El modal se desliza desde abajo tipo tarjeta móvil */
+    padding: 0 !important;
+  }
+
+  /* Formularios y campos anchos */
+  .fila-campos {
+    grid-template-columns: 1fr !important; /* Campos uno debajo de otro en celular */
+  }
+
+  /* Tablas de reporte con scroll horizontal en móviles para que no descuadren */
+  .hoja-reporte {
+    padding: 12px !important;
+    overflow-x: auto;
+  }
+
+  .tabla-reporte {
+    font-size: 12px;
+    min-width: 550px; /* Asegura que la tabla no se aplaste feo */
+  }
+}
