@@ -543,7 +543,7 @@ function plantillaCalendario() {
             <select class="selector" onchange="seleccionarUnidadActiva(this.value)">${opcionesUnidad}</select>
           </div>
           <div>
-            <label class="etiqueta-inline">Filtrar por Grado / Curso</label>
+            <label class="etiqueta-inline">Trabajar en Grado / Curso</label>
             <select class="selector" onchange="cambiarFiltroGradoCalendario(this.value)">${opcionesGrados}</select>
           </div>
         </div>
@@ -585,7 +585,7 @@ function plantillaPanelDia() {
       ${puedeEliminarActividad(a) ? `<button class="item-eliminar" onclick="pedirConfirmarEliminarActividad('${a.id}')"><i data-lucide="trash-2" style="width:14px;height:14px"></i></button>` : ''}
     </div>`).join('');
 
-  let cuerpoAgregar = estado.formAbierto ? plantillaFormActividad(tipoFijo) : `<button class="boton boton-secundario boton-ancho" onclick="mostrarFormActividad()"><i data-lucide="plus"></i> Agregar actividad</button>`;
+  let cuerpoAgregar = estado.formAbierto ? plantillaFormActividad(tipoFijo) : `<button class="boton boton-secundario boton-ancho" onclick="mostrarFormActividad()"><i data-lucide="plus"></i> Agregar actividad para este grado</button>`;
 
   return `
     <div class="superposicion" onclick="cerrarDia()">
@@ -593,7 +593,7 @@ function plantillaPanelDia() {
         <div class="panel-encabezado">
           <div>
             <p class="panel-fecha">${formatFechaLarga(estado.diaSeleccionado)}</p>
-            <p class="panel-cupo">Grado actual: <b>${esc(estado.gradoFiltroCalendario)}</b></p>
+            <p class="panel-cupo">Grado seleccionado: <b>${esc(estado.gradoFiltroCalendario)}</b></p>
           </div>
           <button class="boton-icono" onclick="cerrarDia()"><i data-lucide="x"></i></button>
         </div>
@@ -614,6 +614,8 @@ function plantillaFormActividad(tipoFijo) {
       <button type="button" id="btn-tipo-tarea" class="opcion-tipo opcion-tipo-activa" onclick="alternarTipoActividad('tarea')"><i data-lucide="book-open"></i> Tarea</button>
     </div>` : '';
 
+  const gradoSugerido = estado.gradoFiltroCalendario !== 'TODOS' ? estado.gradoFiltroCalendario : '';
+
   return `
     <form class="form-actividad" onsubmit="manejarEnvioActividad(event)">
       ${selectorTipo}
@@ -623,7 +625,7 @@ function plantillaFormActividad(tipoFijo) {
       <div id="bloque-campos-tarea" style="${tipoInicial === 'tarea' ? '' : 'display:none'}">
         <div class="fila-campos">
           <div><label class="etiqueta">Materia</label><input class="campo" id="campo-materia" placeholder="Ej. Matemática"></div>
-          <div><label class="etiqueta">Grado / Curso</label><input class="campo" id="campo-curso" placeholder="Ej. 4to Bachillerato"></div>
+          <div><label class="etiqueta">Grado / Curso</label><input class="campo" id="campo-curso" value="${esc(gradoSugerido)}" placeholder="Ej. 4to Bachillerato"></div>
         </div>
       </div>
       <label class="etiqueta">Detalle o instrucciones</label>
@@ -657,9 +659,17 @@ function plantillaUnidades() {
   return `
     <div class="vista">
       <div class="vista-encabezado">
-        <div><h2 class="titulo-vista">Unidades</h2></div>
+        <div><h2 class="titulo-vista">Unidades y Configuración de Grados</h2></div>
         ${esAdmin ? `<button class="boton boton-primario" onclick="abrirFormUnidad(null)"><i data-lucide="plus"></i> Nueva unidad</button>` : ''}
       </div>
+
+      ${esAdmin ? `
+      <div class="tarjeta" style="margin-bottom:20px;background:#f8fafc;">
+        <label class="etiqueta" style="font-weight:600;color:#0f2b27;font-size:14px;">Grados oficiales del establecimiento (separados por coma)</label>
+        <p style="font-size:12.5px;color:#52655f;margin:4px 0 10px;">Escribe aquí los grados para que aparezcan automáticamente en los selectores de los calendarios y reportes.</p>
+        <input class="campo" value="${esc(estado.configuracion.grados || '')}" placeholder="Ej. Primero Básico, Segundo Básico, Tercero Básico, Cuarto Bachillerato" onchange="guardarGradosConfig(this)">
+      </div>` : ''}
+
       ${formHtml}
       <div class="lista-unidades">${ordenadas.map(u => `
         <div class="tarjeta-unidad">
@@ -745,15 +755,10 @@ function plantillaReporte() {
         <button class="boton boton-primario" onclick="window.print()"><i data-lucide="printer"></i> Imprimir / PDF</button>
       </div>
 
-      <div class="controles-reporte no-imprimir" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;">
+      <div class="controles-reporte no-imprimir" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;align-items:flex-end;">
         <div><label class="etiqueta">Unidad</label><select class="selector" onchange="cambiarUnidadReporte(this.value)">${opcionesUnidad}</select></div>
-        <div><label class="etiqueta">Grado</label><select class="selector" onchange="cambiarGradoReporte(this.value)">${opcionesGrados}</select></div>
+        <div><label class="etiqueta">Seleccionar Grado a Reportar</label><select class="selector" onchange="cambiarGradoReporte(this.value)">${opcionesGrados}</select></div>
         <div><label class="etiqueta">Establecimiento</label><input class="campo" value="${esc(nombreColegio)}" onchange="guardarNombreColegio(this)"></div>
-        ${estado.sesion.rol === 'admin' ? `
-        <div>
-          <label class="etiqueta">Grados oficiales (separados por coma)</label>
-          <input class="campo" value="${esc(estado.configuracion.grados || '')}" placeholder="Ej. 1ro Básico, 4to Bach" onchange="guardarGradosConfig(this)">
-        </div>` : ''}
       </div>
 
       ${unidad ? `
