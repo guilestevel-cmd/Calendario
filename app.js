@@ -164,8 +164,6 @@ async function iniciar() {
     const [unidades, actividades, configuracion] = await Promise.all([
       api('unidades'), api('actividades'), api('configuracion'),
     ]);
-    // Se descarta cualquier fila incompleta o con fechas mal escritas en el
-    // Sheet, para que un dato roto no impida cargar el resto de la app.
     estado.unidades = (Array.isArray(unidades) ? unidades : [])
       .filter(u => u && u.id && u.nombre && fechaValida(u.fechaInicio) && fechaValida(u.fechaFin));
     estado.actividades = (Array.isArray(actividades) ? actividades : [])
@@ -271,9 +269,20 @@ function cerrarFormUnidad() {
 async function manejarEnvioUnidad(ev) {
   ev.preventDefault();
   const nombre = document.getElementById('campo-nombre-unidad').value.trim();
-  const fechaInicio = document.getElementById('campo-fecha-inicio-unidad').value;
-  const fechaFin = document.getElementById('campo-fecha-fin-unidad').value;
+  let fechaInicio = document.getElementById('campo-fecha-inicio-unidad').value;
+  let fechaFin = document.getElementById('campo-fecha-fin-unidad').value;
   const errorEl = document.getElementById('error-form-unidad');
+
+  // Corrección automática de formato DD/MM/YYYY a YYYY-MM-DD
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(fechaInicio)) {
+    const [d, m, y] = fechaInicio.split('/');
+    fechaInicio = `${y}-${m}-${d}`;
+  }
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(fechaFin)) {
+    const [d, m, y] = fechaFin.split('/');
+    fechaFin = `${y}-${m}-${d}`;
+  }
+
   if (!nombre) { errorEl.innerHTML = mensajeError('Escribe un nombre para la unidad.'); return; }
   if (!fechaInicio || !fechaFin) { errorEl.innerHTML = mensajeError('Indica la fecha de inicio y la fecha de fin.'); return; }
   if (fechaFin < fechaInicio) { errorEl.innerHTML = mensajeError('La fecha de fin no puede ser anterior a la de inicio.'); return; }
