@@ -161,7 +161,6 @@ async function iniciar() {
     
     estado.configuracion = Object.assign({ nombreColegio: 'Instituto de Educación Media' }, configuracion || {});
     
-    // Si es profesor con grado asignado, establecerlo por defecto
     if (estado.sesion && estado.sesion.rol === 'profesor' && estado.sesion.gradoAsignado) {
       estado.gradoActivoCalendario = estado.sesion.gradoAsignado;
       estado.gradoFiltroReporte = estado.sesion.gradoAsignado;
@@ -387,7 +386,7 @@ async function manejarEnvioActividad(ev) {
   ev.preventDefault();
   let tipo = document.getElementById('campo-tipo').value;
   if (estado.sesion.rol === 'comision' || estado.sesion.rol === 'direccion') {
-    tipo = 'evento'; // Obligatorio evento para comisiones y dirección
+    tipo = 'evento';
   }
 
   const titulo = document.getElementById('campo-titulo-actividad').value.trim();
@@ -428,7 +427,7 @@ async function manejarEnvioActividad(ev) {
   estadoDiaReal.ocupadas = estadoDiaReal.tareas.length;
   estadoDiaReal.capacidad = estadoDiaReal.tieneEvento ? 2 : 5;
 
-  const chequeo = peutAgregarVal = puedeAgregar(tipo, estadoDiaReal);
+  const chequeo = puedeAgregar(tipo, estadoDiaReal);
   if (!chequeo.ok) { errorEl.innerHTML = mensajeError(chequeo.msg); return; }
 
   try {
@@ -667,7 +666,6 @@ function plantillaCalendario() {
     return plantillaEstadoVacio('No hay unidades', 'Crea una unidad primero.', estado.sesion.rol === 'admin' ? `<button class="boton boton-primario" onclick="cambiarVista('unidades')">Crear unidad</button>` : '');
   }
 
-  // Unidades sin selección inicial si hay varias
   const opcionesUnidad = `<option value="" disabled ${!estado.unidadActivaId ? 'selected' : ''}>Seleccione una unidad...</option>` +
     unidadesOrdenadas().map(u => `<option value="${u.id}"${u.id === estado.unidadActivaId ? ' selected' : ''}>${esc(u.nombre)} ${String(u.cerrada) === 'true' ? '(Cerrada)' : ''}</option>`).join('');
 
@@ -677,7 +675,6 @@ function plantillaCalendario() {
     return plantillaEstadoVacio('No hay grados configurados', estado.sesion.rol === 'admin' ? 'El administrador debe agregar los grados oficiales en la sección Grados.' : 'Pide a Administración que registre los grados del establecimiento.');
   }
 
-  // Si es profesor con grado asignado, mantenerlo, sino dejarlo vacío sin selección inicial
   if (estado.sesion.rol === 'profesor' && estado.sesion.gradoAsignado) {
     estado.gradoActivoCalendario = estado.sesion.gradoAsignado;
   }
@@ -756,14 +753,13 @@ function plantillaCalendario() {
         </div>
       </div>
       ${unidadCerrada ? `<div style="background:#fef3c7;border:1px solid #f59e0b;padding:10px 16px;border-radius:8px;margin-bottom:16px;color:#92400e;font-size:13.5px;display:flex;align-items:center;gap:8px;"><i data-lucide="alert-triangle"></i> <b>Aviso:</b> Esta unidad está cerrada. No se permite el ingreso de nuevas actividades.</div>` : ''}
-      {!estado.gradoActivoCalendario ? `<div style="background:#e0f2fe;border:1px solid #7dd3fc;padding:10px 16px;border-radius:8px;margin-bottom:16px;color:#0369a1;font-size:13.5px;">ℹ️ Por favor selecciona un <b>Grado</b> en el menú superior para ver la disponibilidad y planificar.</div>` : ''}
+      ${!estado.gradoActivoCalendario ? `<div style="background:#e0f2fe;border:1px solid #7dd3fc;padding:10px 16px;border-radius:8px;margin-bottom:16px;color:#0369a1;font-size:13.5px;">ℹ️ Por favor selecciona un <b>Grado</b> en el menú superior para ver la disponibilidad y planificar.</div>` : ''}
 
       <div class="tarjeta calendario-tarjeta">
         <div class="fila-dias-semana">${DIAS_CORTOS.map(d => `<div class="etiqueta-dia-semana">${d}</div>`).join('')}</div>
         ${filas}
       </div>
 
-      <!-- Leyenda de colores: Verde (Libre), Naranja (Medio), Rojo (Lleno) -->
       <div class="leyenda-calendario" style="display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:20px;margin-top:16px;padding-top:10px;border-top:1px solid #e2e8f0;font-size:11.5px;color:#64748b;">
         <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;background-color:#dcfce7;border:1px solid #22c55e;border-radius:50%;"></span><span>Libre (Verde)</span></div>
         <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;background-color:#ffedd5;border:1px solid #f97316;border-radius:50%;"></span><span>Medio cargado (Naranja)</span></div>
@@ -831,7 +827,6 @@ function plantillaPanelDia() {
 }
 
 function plantillaFormActividad(tipoFijo) {
-  // Comisión y Dirección solo crean Eventos
   const esComisionODir = estado.sesion.rol === 'comision' || estado.sesion.rol === 'direccion';
   const tipoInicial = esComisionODir ? 'evento' : (actividadEnEdicion ? actividadEnEdicion.tipo : (tipoFijo || 'tarea'));
   const esGlobal = esRolGlobal(estado.sesion.rol);
@@ -1062,7 +1057,6 @@ function plantillaReporte() {
   const rolActual = estado.sesion.rol;
   const gradoAsignadoProfesor = estado.sesion.gradoAsignado || '';
 
-  // Unidades sin selección inicial si hay varias
   const opcionesUnidad = `<option value="" disabled ${!estado.unidadReporteId ? 'selected' : ''}>Seleccione una unidad...</option>` +
     `<option value="todas"${estado.unidadReporteId === 'todas' ? ' selected' : ''}>Todas las unidades (General)</option>` +
     unidadesOrdenadas().map(u => `<option value="${u.id}"${u.id === estado.unidadReporteId ? ' selected' : ''}>${esc(u.nombre)}</option>`).join('');
@@ -1079,7 +1073,6 @@ function plantillaReporte() {
     opcionesGrados = `<option value="Profesores" selected>Profesores</option>`;
     if (!estado.gradoFiltroReporte) estado.gradoFiltroReporte = 'Profesores';
   } else {
-    // Admin o Dirección pueden ver los grados completos
     opcionesGrados = `<option value="" disabled ${!estado.gradoFiltroReporte ? 'selected' : ''}>Seleccione destino...</option>` +
       `<option value="TODOS"${estado.gradoFiltroReporte === 'TODOS' ? ' selected' : ''}>Todos los grados (General)</option>` +
       estado.grados.map(g => `<option value="${esc(g.nombre)}"${estado.gradoFiltroReporte === g.nombre ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('');
