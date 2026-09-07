@@ -163,7 +163,6 @@ async function iniciar() {
     
     estado.configuracion = Object.assign({ nombreColegio: 'Instituto de Educación Media', calendarioCerrado: 'false' }, configuracion || {});
     
-    // Configuración por defecto: Roles globales inician en 'Profesores', profesores se quedan vacíos.
     if (estado.sesion && esRolGlobal(estado.sesion.rol)) {
       estado.gradoActivoCalendario = 'Profesores';
     } else {
@@ -805,8 +804,10 @@ function plantillaPanelDia() {
 function plantillaFormActividad(tipoFijo) {
   const tipoInicial = actividadEnEdicion ? actividadEnEdicion.tipo : (tipoFijo || 'tarea');
   const esGlobal = esRolGlobal(estado.sesion.rol);
+  const esAdmin = estado.sesion.rol === 'admin';
 
-  const selectorTipo = (tipoFijo === null || esGlobal) ? `
+  // Solo se muestra el selector de tipo (Evento/Tarea) si es Administrador (tipoFijo === null)
+  const selectorTipo = (tipoFijo === null) ? `
     <div class="selector-tipo">
       <button type="button" id="btn-tipo-evento" class="opcion-tipo${tipoInicial === 'evento' ? ' opcion-tipo-activa' : ''}" onclick="alternarTipoActividad('evento')"><i data-lucide="flag"></i> Evento</button>
       <button type="button" id="btn-tipo-tarea" class="opcion-tipo${tipoInicial === 'tarea' ? ' opcion-tipo-activa' : ''}" onclick="alternarTipoActividad('tarea')"><i data-lucide="book-open"></i> Tarea</button>
@@ -815,8 +816,8 @@ function plantillaFormActividad(tipoFijo) {
   let selectorAlcanceGlobal = '';
   if (esGlobal) {
     const cursoActual = actividadEnEdicion ? (actividadEnEdicion.curso || '') : '';
-    const checkMaestrosChecked = cursoActual === 'Profesores' || cursoActual === 'TODOS';
-    const checkTodosChecked = cursoActual === 'TODOS' || cursoActual === '';
+    const checkMaestrosChecked = actividadEnEdicion ? (cursoActual === 'Profesores' || cursoActual === 'TODOS') : false;
+    const checkTodosChecked = actividadEnEdicion ? (cursoActual === 'TODOS') : false;
 
     selectorAlcanceGlobal = `
       <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:12px;border-radius:8px;margin-bottom:12px;">
