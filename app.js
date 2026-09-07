@@ -162,9 +162,8 @@ async function iniciar() {
     
     estado.configuracion = Object.assign({ nombreColegio: 'Instituto de Educación Media', calendarioCerrado: 'false' }, configuracion || {});
     
-    if (estado.grados.length > 0 && !estado.gradoActivoCalendario) {
-      estado.gradoActivoCalendario = estado.grados[0].nombre;
-    }
+    // Se deja vacío por defecto para que el docente deba seleccionarlo
+    estado.gradoActivoCalendario = '';
 
     if (estado.unidades.length) {
       const primera = unidadesOrdenadas()[0];
@@ -281,7 +280,6 @@ function pedirConfirmarEliminarUnidad(id) {
   render();
 }
 
-/* ============================== GESTIÓN DE GRADOS =============================== */
 function abrirFormGrado() { estado.formGradoAbierto = true; render(); }
 function cerrarFormGrado() { estado.formGradoAbierto = false; render(); }
 
@@ -296,9 +294,6 @@ async function manejarEnvioGrado(ev) {
     const resultado = await api('grados', { metodo: 'POST', accion: 'crear', datos: nuevo });
     if (!resultado.ok) { errorEl.innerHTML = mensajeError(resultado.error); return; }
     estado.grados = resultado.lista;
-    if (!estado.gradoActivoCalendario && estado.grados.length > 0) {
-      estado.gradoActivoCalendario = estado.grados[0].nombre;
-    }
     estado.formGradoAbierto = false;
     render();
   } catch (e) { errorEl.innerHTML = mensajeError('Error al guardar grado.'); }
@@ -313,14 +308,13 @@ function pedirConfirmarEliminarGrado(id) {
       const resultado = await api('grados', { metodo: 'POST', accion: 'eliminar', datos: { id } });
       estado.grados = resultado.lista || [];
       if (estado.gradoActivoCalendario === g.nombre) {
-        estado.gradoActivoCalendario = estado.grados.length > 0 ? estado.grados[0].nombre : '';
+        estado.gradoActivoCalendario = '';
       }
     },
   };
   render();
 }
 
-/* ============================== ACTIVIDADES =============================== */
 function abrirDia(fecha) { estado.diaSeleccionado = fecha; estado.formAbierto = false; actividadEnEdicion = null; render(); }
 function cerrarDia() { estado.diaSeleccionado = null; estado.formAbierto = false; actividadEnEdicion = null; render(); }
 function mostrarFormActividad(idActividad) {
@@ -435,7 +429,6 @@ function pedirConfirmarLimpiarActividades() {
   render();
 }
 
-/* ============================== GESTIÓN DE USUARIOS =============================== */
 function elegirRolNuevoUsuario(rol) {
   rolNuevoUsuario = rol;
   document.querySelectorAll('#form-usuario .opcion-rol').forEach(btn => {
@@ -521,7 +514,6 @@ async function guardarNombreColegio(input) {
   await api('configuracion', { metodo: 'POST', datos: { nombreColegio: valor } });
 }
 
-/* ============================== RENDER PRINCIPAL =============================== */
 function render() {
   const raiz = document.getElementById('app');
   if (estado.cargando) { raiz.innerHTML = `<div class="pantalla-carga"><i data-lucide="loader-2" class="girando"></i><p>Cargando planeador...</p></div>`; return; }
@@ -632,11 +624,8 @@ function plantillaCalendario() {
     return plantillaEstadoVacio('No hay grados configurados', estado.sesion.rol === 'admin' ? 'El administrador debe agregar los grados oficiales en la sección Grados.' : 'Pide a Administración que registre los grados del establecimiento.');
   }
 
-  if (!estado.gradoActivoCalendario && estado.grados.length > 0) {
-    estado.gradoActivoCalendario = estado.grados[0].nombre;
-  }
-
-  const opcionesGrados = estado.grados.map(g => `<option value="${esc(g.nombre)}"${estado.gradoActivoCalendario === g.nombre ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('');
+  const opcionesGrados = `<option value="" disabled ${!estado.gradoActivoCalendario ? 'selected' : ''}>-- Seleccione un grado --</option>` +
+    estado.grados.map(g => `<option value="${esc(g.nombre)}"${estado.gradoActivoCalendario === g.nombre ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('');
 
   const inicio = parseFecha(unidad.fechaInicio);
   const fin = parseFecha(unidad.fechaFin);
@@ -648,6 +637,29 @@ function plantillaCalendario() {
   const actividadesUnidad = actividadesUnidadActual();
   const opcionesUnidad = unidadesOrdenadas().map(u => `<option value="${u.id}"${u.id === unidad.id ? ' selected' : ''}>${esc(u.nombre)}</option>`).join('');
   const calendarioCerrado = estado.configuracion.calendarioCerrado === 'true';
+
+  if (!estado.gradoActivoCalendario) {
+    return `
+      <div class="vista">
+        <div class="vista-encabezado">
+          <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;">
+            <div>
+              <label class="etiqueta-inline">Unidad Activa</label>
+              <select class="selector" onchange="seleccionarUnidadActiva(this.value)">${opcionesUnidad}</select>
+            </div>
+            <div>
+              <label class="etiqueta-inline">Trabajando en Grado</label>
+              <select class="selector" onchange="cambiarGradoActivoCalendario(this.value)">${opcionesGrados}</select>
+            </div>
+          </div>
+        </div>
+        <div class="tarjeta" style="text-align:center;padding:50px 20px;margin-top:20px;">
+          <i data-lucide="info" style="width:40px;height:40px;color:#3b82f6;margin-bottom:12px;"></i>
+          <h3 style="font-size:18px;color:var(--tinta);margin-bottom:8px;">Debe seleccionar un grado</h3>
+          <p style="color:var(--tinta-suave);font-size:14px;">Por favor, elija un grado en la opción <b>"Trabajando en Grado"</b> en la parte superior para visualizar el calendario y las actividades correspondientes.</p>
+        </div>
+      </div>`;
+  }
 
   const filas = semanas.map(semana => `
     <div class="fila-semana">
@@ -700,7 +712,6 @@ function plantillaCalendario() {
         ${filas}
       </div>
 
-      <!-- Leyenda discreta de colores en la parte inferior -->
       <div class="leyenda-calendario" style="display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:20px;margin-top:16px;padding-top:10px;border-top:1px solid #e2e8f0;font-size:11.5px;color:#64748b;">
         <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;background-color:#ffffff;border:1px solid #cbd5e1;border-radius:50%;"></span><span>Libre</span></div>
         <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;background-color:#f1f5f9;border:1px solid #94a3b8;border-radius:50%;"></span><span>Medio cargado</span></div>
@@ -819,7 +830,6 @@ function plantillaFormActividad(tipoFijo) {
     </form>`;
 }
 
-/* ============================== UNIDADES =============================== */
 function plantillaUnidades() {
   if (estado.sesion.rol !== 'admin') return plantillaEstadoVacio('Acceso Restringido', 'Solo el administrador del sistema puede gestionar las unidades.');
   const ordenadas = unidadesOrdenadas();
@@ -866,7 +876,6 @@ function plantillaUnidades() {
     </div>`;
 }
 
-/* ============================== SECCIÓN GRADOS (ADMIN) =============================== */
 function plantillaGrados() {
   if (estado.sesion.rol !== 'admin') return '';
   const formHtml = estado.formGradoAbierto ? `
@@ -905,7 +914,6 @@ function plantillaGrados() {
     </div>`;
 }
 
-/* ============================== USUARIOS =============================== */
 function plantillaUsuarios() {
   if (estado.sesion.rol !== 'admin') return '';
   const opcionesRol = Object.entries(ROLES).map(([clave, r]) => `
@@ -962,7 +970,6 @@ function mostrarFormRestablecer(id) {
   if (el) el.style.display = el.style.display === 'none' ? '' : 'none';
 }
 
-/* ============================== REPORTE =============================== */
 function plantillaReporte() {
   if (!estado.unidades.length) return plantillaEstadoVacio('Sin unidades', 'No hay unidades registradas.');
 
