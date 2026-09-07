@@ -3,14 +3,14 @@
 /* ================================================================= */
 
 :root {
-  --fondo: #f8fafc;
+  --fondo: #f4f7f6;
   --superficie: #ffffff;
-  --borde: #e2e8f0;
-  --tinta: #0f172a;
+  --borde: #e0e6ed;
+  --tinta: #1e293b;
   --tinta-suave: #64748b;
-  --primario: #0284c7;
-  --primario-hover: #0369a1;
-  --peligro: #ef4444;
+  --primario: #0f2b27;
+  --primario-hover: #163d38;
+  --peligro: #dc2626;
 }
 
 body {
@@ -31,13 +31,13 @@ body {
 /* ================================================================= */
 
 .barra {
-  width: 260px;
+  width: 250px;
   background-color: var(--superficie);
   border-right: 1px solid var(--borde);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 20px;
+  padding: 24px 16px;
   box-sizing: border-box;
 }
 
@@ -48,13 +48,14 @@ body {
   font-size: 18px;
   font-weight: bold;
   color: var(--primario);
-  margin-bottom: 30px;
+  margin-bottom: 24px;
+  padding-left: 8px;
 }
 
 .barra-nav {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   flex: 1;
 }
 
@@ -62,12 +63,12 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 14px;
+  padding: 10px 12px;
   border-radius: 8px;
   border: none;
   background: none;
   color: var(--tinta-suave);
-  font-size: 14.5px;
+  font-size: 14px;
   cursor: pointer;
   text-align: left;
   width: 100%;
@@ -79,14 +80,14 @@ body {
 }
 
 .barra-item-activo {
-  background-color: #e0f2fe;
+  background-color: #e6f0ee;
   color: var(--primario);
   font-weight: bold;
 }
 
 .barra-usuario {
   border-top: 1px solid var(--borde);
-  padding-top: 15px;
+  padding-top: 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -96,16 +97,20 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
+  overflow: hidden;
 }
 
 .barra-usuario-nombre {
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: bold;
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .barra-usuario-rol {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--tinta-suave);
   margin: 0;
 }
@@ -142,13 +147,13 @@ body {
 }
 
 .titulo-vista {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: bold;
   margin: 0;
 }
 
 .subtitulo-vista {
-  font-size: 13.5px;
+  font-size: 13px;
   color: var(--tinta-suave);
   margin: 4px 0 0 0;
 }
@@ -160,17 +165,17 @@ body {
 .tarjeta {
   background-color: var(--superficie);
   border: 1px solid var(--borde);
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 20px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.02);
 }
 
 .campo, .selector {
   width: 100%;
-  padding: 10px 12px;
+  padding: 9px 12px;
   border: 1px solid var(--borde);
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 13.5px;
   box-sizing: border-box;
   background-color: #fff;
   color: var(--tinta);
@@ -179,28 +184,28 @@ body {
 .campo:focus, .selector:focus {
   outline: none;
   border-color: var(--primario);
-  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
+  box-shadow: 0 0 0 2px rgba(15, 43, 39, 0.1);
 }
 
 .etiqueta {
   display: block;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: bold;
   color: var(--tinta-suave);
   margin-bottom: 6px;
 }
 
 .etiqueta-inline {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--tinta-suave);
   display: block;
   margin-bottom: 4px;
 }
 
 .boton {
-  padding: 10px 16px;
+  padding: 9px 16px;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: bold;
   cursor: pointer;
   border: none;
@@ -296,9 +301,9 @@ body {
   grid-template-columns: repeat(7, 1fr);
   text-align: center;
   font-weight: bold;
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--tinta-suave);
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .fila-semana {
@@ -346,13 +351,13 @@ body {
 }
 
 .numero-dia {
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: bold;
   color: var(--tinta);
 }
 
 .conteo-dia {
-  font-size: 10px;
+  font-size: 9.5px;
   background-color: rgba(0,0,0,0.06);
   padding: 2px 5px;
   border-radius: 4px;
@@ -364,10 +369,10 @@ body {
   position: absolute;
   top: 6px;
   right: 6px;
-  color: #0f2b27;
+  color: var(--primario);
 }
 
-/* NUEVOS COLORES DE DISPONIBILIDAD (Verde, Naranja, Rojo) */
+/* COLORES DE DISPONIBILIDAD EXACTOS: Verde, Naranja, Rojo */
 .celda-libre {
   background-color: #dcfce7 !important; /* Verde */
   border-color: #22c55e !important;
@@ -389,7 +394,7 @@ body {
 .nav-mes {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   background: var(--superficie);
   border: 1px solid var(--borde);
   padding: 4px 10px;
@@ -397,9 +402,9 @@ body {
 }
 
 .nombre-mes {
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: bold;
-  min-width: 120px;
+  min-width: 110px;
   text-align: center;
 }
 
@@ -425,7 +430,7 @@ body {
 }
 
 .panel {
-  width: 420px;
+  width: 400px;
   max-width: 100%;
   height: 100%;
   background-color: var(--superficie);
@@ -444,13 +449,13 @@ body {
 }
 
 .panel-fecha {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: bold;
   margin: 0;
 }
 
 .panel-cupo {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--tinta-suave);
   margin: 4px 0 0 0;
 }
@@ -464,28 +469,27 @@ body {
 .panel-sin-actividades {
   color: var(--tinta-suave);
   text-align: center;
-  font-size: 13.5px;
+  font-size: 13px;
   margin-top: 30px;
 }
 
-/* Items de actividad en el panel */
 .item-actividad {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   background-color: #f8fafc;
   border: 1px solid var(--borde);
   border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 12px;
+  padding: 10px;
+  margin-bottom: 10px;
   align-items: flex-start;
 }
 
 .item-evento {
-  border-left: 4px solid var(--tinta);
+  border-left: 4px solid var(--primario);
 }
 
 .item-tarea {
-  border-left: 4px solid var(--primario);
+  border-left: 4px solid #0284c7;
 }
 
 .item-cuerpo {
@@ -493,24 +497,24 @@ body {
 }
 
 .item-titulo {
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: bold;
-  margin: 0 0 4px 0;
+  margin: 0 0 3px 0;
 }
 
 .item-meta {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--tinta-suave);
-  margin: 0 0 4px 0;
+  margin: 0 0 3px 0;
 }
 
 .item-descripcion {
-  font-size: 13px;
-  margin: 0 0 6px 0;
+  font-size: 12.5px;
+  margin: 0 0 5px 0;
 }
 
 .item-responsable {
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--tinta-suave);
   margin: 0;
 }
@@ -526,20 +530,19 @@ body {
   color: var(--peligro);
 }
 
-/* Formulario interno de actividades */
 .form-actividad {
   background-color: #f8fafc;
   border: 1px solid var(--borde);
-  padding: 16px;
+  padding: 14px;
   border-radius: 8px;
-  margin-top: 15px;
+  margin-top: 12px;
 }
 
 .selector-tipo {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .opcion-tipo {
@@ -548,7 +551,7 @@ body {
   background: white;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: bold;
   display: flex;
   align-items: center;
@@ -557,7 +560,7 @@ body {
 }
 
 .opcion-tipo-activa {
-  background-color: #e0f2fe;
+  background-color: #e6f0ee;
   border-color: var(--primario);
   color: var(--primario);
 }
@@ -566,37 +569,36 @@ body {
   resize: vertical;
 }
 
-/* Dialogo de confirmación */
 .dialogo {
   background: var(--superficie);
   padding: 24px;
-  border-radius: 12px;
+  border-radius: 10px;
   width: 320px;
   box-shadow: 0 10px 25px rgba(0,0,0,0.1);
   box-sizing: border-box;
 }
 
 .dialogo-mensaje {
-  font-size: 14.5px;
+  font-size: 14px;
   margin: 0 0 20px 0;
   line-height: 1.4;
 }
 
 /* ================================================================= */
-/* UNIDADES Y GRADOS (LISTAS)                                        */
+/* UNIDADES Y GRADOS                                                 */
 /* ================================================================= */
 
 .lista-unidades {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .tarjeta-unidad {
   background-color: var(--superficie);
   border: 1px solid var(--borde);
   border-radius: 8px;
-  padding: 16px;
+  padding: 14px 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -612,13 +614,13 @@ body {
 }
 
 .tarjeta-unidad-nombre {
-  font-size: 15px;
+  font-size: 14.5px;
   font-weight: bold;
   margin: 0 0 2px 0;
 }
 
 .tarjeta-unidad-rango {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--tinta-suave);
   margin: 0;
 }
@@ -632,7 +634,6 @@ body {
   margin-bottom: 20px;
 }
 
-/* Selector de roles en usuarios */
 .selector-roles {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -641,19 +642,19 @@ body {
 }
 
 .opcion-rol {
-  padding: 10px;
+  padding: 9px;
   border: 1px solid var(--borde);
   background: white;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12.5px;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
 .opcion-rol-activa {
-  background-color: #e0f2fe;
+  background-color: #e6f0ee;
   border-color: var(--primario);
   color: var(--primario);
   font-weight: bold;
@@ -673,11 +674,11 @@ body {
 
 .reporte-encabezado {
   text-align: center;
-  margin-bottom: 30px;
+  margin-bottom: 24px;
 }
 
 .reporte-colegio {
-  font-size: 14px;
+  font-size: 13.5px;
   color: var(--tinta-suave);
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -685,13 +686,13 @@ body {
 }
 
 .reporte-titulo {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: bold;
   margin: 0 0 6px 0;
 }
 
 .reporte-unidad {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: bold;
   color: var(--primario);
   margin: 0;
@@ -706,12 +707,12 @@ body {
 .tabla-reporte {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13.5px;
+  font-size: 13px;
 }
 
 .tabla-reporte th, .tabla-reporte td {
   border: 1px solid var(--borde);
-  padding: 10px 12px;
+  padding: 9px 12px;
   text-align: left;
 }
 
@@ -733,7 +734,7 @@ body {
 .etiqueta-tipo {
   padding: 2px 6px;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: bold;
   text-transform: uppercase;
 }
@@ -748,7 +749,6 @@ body {
   color: #0369a1;
 }
 
-/* Pantalla de carga inicial */
 .pantalla-carga {
   display: flex;
   flex-direction: column;
@@ -762,8 +762,8 @@ body {
 .girando {
   animation: girar 1s linear infinite;
   color: var(--primario);
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
 }
 
 @keyframes girar {
@@ -862,7 +862,7 @@ button:active, .boton:active, .barra-item:active, .celda-dia:active, .opcion-tip
   }
 
   .numero-dia {
-    font-size: 13.5px;
+    font-size: 13px;
   }
 
   .conteo-dia {
