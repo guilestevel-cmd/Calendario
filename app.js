@@ -91,6 +91,7 @@ function getEstadoDiaGrado(fechaStr, actividades, gradoSeleccionado) {
   const delDia = actividades.filter(a => a.fecha === fechaStr);
   
   const visibles = delDia.filter(a => {
+    if (gradoSeleccionado === 'TODOS') return true;
     if (esRolGlobal(a.rol)) {
       if (!a.curso || a.curso === 'TODOS' || a.curso === '') return true;
       return a.curso.trim().toLowerCase() === gradoSeleccionado.trim().toLowerCase();
@@ -162,8 +163,12 @@ async function iniciar() {
     
     estado.configuracion = Object.assign({ nombreColegio: 'Instituto de Educación Media', calendarioCerrado: 'false' }, configuracion || {});
     
-    // Se deja vacío por defecto para que el docente deba seleccionarlo
-    estado.gradoActivoCalendario = '';
+    // Si el rol es global (admin, comision, direccion), se selecciona 'TODOS' por defecto. Si es profesor, se deja vacío.
+    if (estado.sesion && esRolGlobal(estado.sesion.rol)) {
+      estado.gradoActivoCalendario = 'TODOS';
+    } else {
+      estado.gradoActivoCalendario = '';
+    }
 
     if (estado.unidades.length) {
       const primera = unidadesOrdenadas()[0];
@@ -198,6 +203,7 @@ async function manejarEnvioPrimerAdmin(ev) {
     estado.usuarios = resultado.lista;
     estado.hayUsuarios = true;
     estado.sesion = { usuario, nombre, rol: 'admin' };
+    estado.gradoActivoCalendario = 'TODOS';
     try { localStorage.setItem('planea-sesion', JSON.stringify(estado.sesion)); } catch (e) {}
     render();
   } catch (e) { errorEl.innerHTML = mensajeError('Error de conexión.'); }
@@ -214,6 +220,13 @@ async function manejarEnvioLogin(ev) {
     const resultado = await api('sesion', { metodo: 'POST', accion: 'iniciar', datos: { usuario, contrasena } });
     if (!resultado.ok) { errorEl.innerHTML = mensajeError(resultado.error); return; }
     estado.sesion = { usuario: resultado.usuario, nombre: resultado.nombre, rol: resultado.rol };
+    
+    if (esRolGlobal(estado.sesion.rol)) {
+      estado.gradoActivoCalendario = 'TODOS';
+    } else {
+      estado.gradoActivoCalendario = '';
+    }
+
     try { localStorage.setItem('planea-sesion', JSON.stringify(estado.sesion)); } catch (e) {}
     render();
   } catch (e) { errorEl.innerHTML = mensajeError('Error de conexión.'); }
@@ -221,6 +234,7 @@ async function manejarEnvioLogin(ev) {
 
 function cerrarSesion() {
   estado.sesion = null;
+  estado.gradoActivoCalendario = '';
   try { localStorage.removeItem('planea-sesion'); } catch (e) {}
   render();
 }
@@ -308,7 +322,7 @@ function pedirConfirmarEliminarGrado(id) {
       const resultado = await api('grados', { metodo: 'POST', accion: 'eliminar', datos: { id } });
       estado.grados = resultado.lista || [];
       if (estado.gradoActivoCalendario === g.nombre) {
-        estado.gradoActivoCalendario = '';
+        estado.gradoActivoCalendario = esRolGlobal(estado.sesion?.rol) ? 'TODOS' : '';
       }
     },
   };
@@ -360,17 +374,18 @@ async function manejarEnvioActividad(ev) {
     } else if (esTodos) {
       curso = 'TODOS';
     } else {
-      curso = estado.gradoActivoCalendario;
+      curso = estado.gradoActivoCalendario === 'TODOS' ? 'TODOS' : estado.gradoActivoCalendario;
     }
   }
 
   if (!titulo) { errorEl.innerHTML = mensajeError('Escribe un título.'); return; }
-  if (tipo === 'tarea' && !curso) {
-    errorEl.innerHTML = mensajeError('Debes seleccionar un grado activo.');
+  if (tipo === 'tarea' && (!curso || curso === 'TODOS')) {
+    errorEl.innerHTML = mensajeError('Para crear una tarea debes seleccionar un grado específico (no "TODOS").');
     return;
   }
 
   const actividadesActuales = actividadesUnidadActual();
+  const gradoEvaluacion = curso === 'TODOS' ? (estado.grados[0] ? estado.grados[0].nombre : '') : curso;
   const estadoDiaReal = {
     eventos: actividadesActuales.filter(a => a.fecha === estado.diaSeleccionado && a.tipo === 'evento' && (!actividadEnEdicion || a.id !== actividadEnEdicion.id)),
     tareas: actividadesActuales.filter(a => a.fecha === estado.diaSeleccionado && a.tipo === 'tarea' && (!actividadEnEdicion || a.id !== actividadEnEdicion.id)),
@@ -624,8 +639,16 @@ function plantillaCalendario() {
     return plantillaEstadoVacio('No hay grados configurados', estado.sesion.rol === 'admin' ? 'El administrador debe agregar los grados oficiales en la sección Grados.' : 'Pide a Administración que registre los grados del establecimiento.');
   }
 
-  const opcionesGrados = `<option value="" disabled ${!estado.gradoActivoCalendario ? 'selected' : ''}>-- Seleccione un grado --</option>` +
-    estado.grados.map(g => `<option value="${esc(g.nombre)}"${estado.gradoActivoCalendario === g.nombre ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('');
+  const esGlobal = esRolGlobal(estado.sesion.rol);
+  let opcionesGrados = '';
+
+  if (esGlobal) {
+    opcionesGrados += `<option value="TODOS"${estado.gradoActivoCalendario === 'TODOS' ? ' selected' : ''}>-- Todos los grados (General) --</option>`;
+  } else {
+    opcionesGrados += `<option value="" disabled ${!estado.gradoActivoCalendario ? 'selected' : ''}>-- Seleccione un grado --</option>`;
+  }
+
+  opcionesGrados += estado.grados.map(g => `<option value="${esc(g.nombre)}"${estado.gradoActivoCalendario === g.nombre ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('');
 
   const inicio = parseFecha(unidad.fechaInicio);
   const fin = parseFecha(unidad.fechaFin);
@@ -638,7 +661,7 @@ function plantillaCalendario() {
   const opcionesUnidad = unidadesOrdenadas().map(u => `<option value="${u.id}"${u.id === unidad.id ? ' selected' : ''}>${esc(u.nombre)}</option>`).join('');
   const calendarioCerrado = estado.configuracion.calendarioCerrado === 'true';
 
-  if (!estado.gradoActivoCalendario) {
+  if (!esGlobal && !estado.gradoActivoCalendario) {
     return `
       <div class="vista">
         <div class="vista-encabezado">
@@ -754,6 +777,8 @@ function plantillaPanelDia() {
   let cuerpoAgregar = '';
   if (calendarioCerrado) {
     cuerpoAgregar = `<p style="text-align:center;color:var(--tinta-suave);font-size:13px;padding:8px;">Calendario cerrado para nuevos ingresos.</p>`;
+  } else if (estado.gradoActivoCalendario === 'TODOS') {
+    cuerpoAgregar = `<p style="text-align:center;color:var(--tinta-suave);font-size:13px;padding:8px;">Para agregar actividades o tareas específicas, selecciona un grado en concreto en lugar de "Todos los grados".</p>`;
   } else {
     cuerpoAgregar = estado.formAbierto ? plantillaFormActividad(tipoFijo) : `<button class="boton boton-secundario boton-ancho" onclick="mostrarFormActividad(null)"><i data-lucide="plus"></i> Agregar actividad para ${esc(estado.gradoActivoCalendario)}</button>`;
   }
@@ -769,7 +794,7 @@ function plantillaPanelDia() {
           <button class="boton-icono" onclick="cerrarDia()"><i data-lucide="x"></i></button>
         </div>
         <div class="panel-cuerpo">
-          ${items.length === 0 && !estado.formAbierto ? `<p class="panel-sin-actividades">No hay actividades visibles para este grado en este día.</p>` : ''}
+          ${items.length === 0 && !estado.formAbierto ? `<p class="panel-sin-actividades">No hay actividades visibles para esta selección en este día.</p>` : ''}
           ${itemsHtml}
           ${cuerpoAgregar}
         </div>
@@ -1064,5 +1089,4 @@ function plantillaConfirmar() {
       </div>
     </div>`;
 }
-
 document.addEventListener('DOMContentLoaded', iniciar);
