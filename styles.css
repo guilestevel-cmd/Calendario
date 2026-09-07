@@ -30,11 +30,20 @@ body {
 /* PANTALLA DE ACCESO / LOGIN (Centrada y con ancho controlado)      */
 /* ================================================================= */
 
+#app:has(.acceso) {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .acceso {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
+  width: 100%;
+  height: 100%;
   padding: 20px;
   box-sizing: border-box;
   background-color: var(--fondo);
@@ -47,7 +56,7 @@ body {
   padding: 32px;
   width: 100%;
   max-width: 400px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
   box-sizing: border-box;
 }
 
@@ -974,35 +983,4 @@ button:active, .boton:active, .barra-item:active, .celda-dia:active, .opcion-tip
     padding: 0;
     width: 100%;
   }
-}
-
-/* ================================================================= */
-/* CORRECCIÓN INMEDIATA DE ANCHO Y CENTRADO DE LOGIN                 */
-/* ================================================================= */
-
-.acceso {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  min-height: 100vh !important;
-  width: 100vw !important;
-  background-color: var(--fondo, #f4f7f6) !important;
-  margin: 0 !important;
-  padding: 20px !important;
-  box-sizing: border-box !important;
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  z-index: 9999 !important;
-}
-
-.acceso-tarjeta {
-  background-color: #ffffff !important;
-  border: 1px solid #e0e6ed !important;
-  border-radius: 12px !important;
-  padding: 32px !important;
-  width: 100% !important;
-  max-width: 400px !important;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
-  box-sizing: border-box !important;
 }
