@@ -87,9 +87,37 @@ function esRolGlobal(rol) {
   return rol === 'comision' || rol === 'direccion' || rol === 'admin';
 }
 
+function inicializarUnidadPorDefecto() {
+  const abiertas = estado.unidades.filter(u => String(u.cerrada) !== 'true');
+  if (abiertas.length === 1) {
+    estado.unidadActivaId = abiertas[0].id;
+    estado.unidadReporteId = abiertas[0].id;
+    const di = parseFecha(abiertas[0].fechaInicio);
+    estado.mesActual = { year: di.getFullYear(), month: di.getMonth() };
+  } else if (estado.unidades.length === 1) {
+    estado.unidadActivaId = estado.unidades[0].id;
+    estado.unidadReporteId = estado.unidades[0].id;
+    const di = parseFecha(estado.unidades[0].fechaInicio);
+    estado.mesActual = { year: di.getFullYear(), month: di.getMonth() };
+  }
+}
+
+function inicializarGradoPorDefecto() {
+  if (estado.sesion) {
+    if (estado.sesion.rol === 'profesor' && estado.sesion.gradoAsignado) {
+      estado.gradoActivoCalendario = estado.sesion.gradoAsignado;
+      estado.gradoFiltroReporte = estado.sesion.gradoAsignado;
+    } else if (esRolGlobal(estado.sesion.rol)) {
+      if (!estado.gradoActivoCalendario) estado.gradoActivoCalendario = 'TODOS';
+      if (!estado.gradoFiltroReporte) estado.gradoFiltroReporte = estado.sesion.rol === 'comision' ? 'Profesores' : 'TODOS';
+    }
+  }
+}
+
 function getEstadoDiaGrado(fechaStr, actividades, gradoSeleccionado) {
   const delDia = actividades.filter(a => a.fecha === fechaStr);
   const visibles = delDia.filter(a => {
+    if (!gradoSeleccionado || gradoSeleccionado === 'TODOS') return true;
     if (esRolGlobal(a.rol)) {
       if (!a.curso || a.curso === 'TODOS' || a.curso === '') return true;
       return a.curso.trim().toLowerCase() === gradoSeleccionado.trim().toLowerCase();
@@ -161,12 +189,10 @@ async function iniciar() {
     
     estado.configuracion = Object.assign({ nombreColegio: 'Instituto de Educación Media' }, configuracion || {});
     
-    if (estado.sesion && estado.sesion.rol === 'profesor' && estado.sesion.gradoAsignado) {
-      estado.gradoActivoCalendario = estado.sesion.gradoAsignado;
-      estado.gradoFiltroReporte = estado.sesion.gradoAsignado;
-    }
+    inicializarUnidadPorDefecto();
+    inicializarGradoPorDefecto();
 
-    if (estado.unidades.length) {
+    if (estado.unidades.length && !estado.mesActual) {
       const n = new Date();
       estado.mesActual = { year: n.getFullYear(), month: n.getMonth() };
     }
@@ -195,6 +221,7 @@ async function manejarEnvioPrimerAdmin(ev) {
     estado.hayUsuarios = true;
     estado.sesion = { usuario, nombre, rol: 'admin', gradoAsignado: '' };
     try { localStorage.setItem('planea-sesion', JSON.stringify(estado.sesion)); } catch (e) {}
+    inicializarGradoPorDefecto();
     render();
   } catch (e) { errorEl.innerHTML = mensajeError('Error de conexión.'); }
 }
@@ -217,12 +244,8 @@ async function manejarEnvioLogin(ev) {
       gradoAsignado: resultado.gradoAsignado || '' 
     };
 
-    if (estado.sesion.rol === 'profesor' && estado.sesion.gradoAsignado) {
-      estado.gradoActivoCalendario = estado.sesion.gradoAsignado;
-      estado.gradoFiltroReporte = estado.sesion.gradoAsignado;
-    } else if (estado.sesion.rol === 'comision') {
-      estado.gradoFiltroReporte = 'Profesores';
-    }
+    inicializarUnidadPorDefecto();
+    inicializarGradoPorDefecto();
 
     try { localStorage.setItem('planea-sesion', JSON.stringify(estado.sesion)); } catch (e) {}
     render();
@@ -231,6 +254,8 @@ async function manejarEnvioLogin(ev) {
 
 function cerrarSesion() {
   estado.sesion = null;
+  estado.gradoActivoCalendario = '';
+  estado.gradoFiltroReporte = '';
   try { localStorage.removeItem('planea-sesion'); } catch (e) {}
   render();
 }
@@ -336,7 +361,7 @@ function pedirConfirmarEliminarGrado(id) {
     accion: async () => {
       const resultado = await api('grados', { metodo: 'POST', accion: 'eliminar', datos: { id } });
       estado.grados = resultado.lista || [];
-      if (estado.gradoActivoCalendario === g.nombre) estado.gradoActivoCalendario = '';
+      if (estado.gradoActivoCalendario === g.nombre) estado.gradoActivoCalendario = 'TODOS';
     },
   };
   render();
@@ -344,7 +369,6 @@ function pedirConfirmarEliminarGrado(id) {
 
 function abrirDia(fecha) {
   if (!estado.unidadActivaId) { alert('Por favor selecciona una Unidad Activa primero.'); return; }
-  if (!estado.gradoActivoCalendario) { alert('Por favor selecciona un Grado para trabajar primero.'); return; }
   
   const unidadActual = unidadActiva();
   if (unidadActual && String(unidadActual.cerrada) === 'true') {
@@ -392,7 +416,7 @@ async function manejarEnvioActividad(ev) {
   const descripcion = document.getElementById('campo-descripcion-actividad').value.trim();
   const errorEl = document.getElementById('error-form-actividad');
 
-  let curso = estado.gradoActivoCalendario;
+  let curso = estado.gradoActivoCalendario && estado.gradoActivoCalendario !== 'TODOS' ? estado.gradoActivoCalendario : '';
   const globalCheckMaestros = document.getElementById('scope-maestros');
   const globalCheckTodos = document.getElementById('scope-todos');
 
@@ -406,16 +430,17 @@ async function manejarEnvioActividad(ev) {
     } else if (esTodos) {
       curso = 'TODOS';
     } else {
-      curso = estado.gradoActivoCalendario;
+      curso = (estado.gradoActivoCalendario && estado.gradoActivoCalendario !== 'TODOS') ? estado.gradoActivoCalendario : 'TODOS';
     }
   }
 
   if (!titulo) { errorEl.innerHTML = mensajeError('Escribe un título.'); return; }
-  if (tipo === 'tarea' && !curso) {
-    errorEl.innerHTML = mensajeError('Debes seleccionar un grado activo.');
+  if (tipo === 'tarea' && (!curso || curso === 'TODOS')) {
+    errorEl.innerHTML = mensajeError('Debes seleccionar un grado específico para asignar una tarea.');
     return;
   }
 
+  const gradoValidacion = (curso && curso !== 'TODOS' && curso !== 'Profesores') ? curso : (estado.grados[0] ? estado.grados[0].nombre : '');
   const actividadesActuales = actividadesUnidadActual();
   const estadoDiaReal = {
     eventos: actividadesActuales.filter(a => a.fecha === estado.diaSeleccionado && a.tipo === 'evento' && (!actividadEnEdicion || a.id !== actividadEnEdicion.id)),
@@ -662,6 +687,7 @@ function plantillaCalendario() {
     return plantillaEstadoVacio('No hay unidades', 'Crea una unidad primero.', estado.sesion.rol === 'admin' ? `<button class="boton boton-primario" onclick="cambiarVista('unidades')">Crear unidad</button>` : '');
   }
 
+  const abiertas = estado.unidades.filter(u => String(u.cerrada) !== 'true');
   const opcionesUnidad = `<option value="" disabled ${!estado.unidadActivaId ? 'selected' : ''}>Seleccione una unidad...</option>` +
     unidadesOrdenadas().map(u => `<option value="${u.id}"${u.id === estado.unidadActivaId ? ' selected' : ''}>${esc(u.nombre)} ${String(u.cerrada) === 'true' ? '(Cerrada)' : ''}</option>`).join('');
 
@@ -673,10 +699,17 @@ function plantillaCalendario() {
 
   if (estado.sesion.rol === 'profesor' && estado.sesion.gradoAsignado) {
     estado.gradoActivoCalendario = estado.sesion.gradoAsignado;
+  } else if (esRolGlobal(estado.sesion.rol) && !estado.gradoActivoCalendario) {
+    estado.gradoActivoCalendario = 'TODOS';
   }
 
-  const opcionesGrados = `<option value="" disabled ${!estado.gradoActivoCalendario ? 'selected' : ''}>Seleccione un grado...</option>` +
-    estado.grados.map(g => `<option value="${esc(g.nombre)}"${estado.gradoActivoCalendario === g.nombre ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('');
+  let opcionesGrados = '';
+  if (estado.sesion.rol === 'profesor') {
+    opcionesGrados = `<option value="${esc(estado.sesion.gradoAsignado)}" selected>${esc(estado.sesion.gradoAsignado)}</option>`;
+  } else {
+    opcionesGrados = `<option value="TODOS"${estado.gradoActivoCalendario === 'TODOS' ? ' selected' : ''}>-- Todos los grados (General) --</option>` +
+      estado.grados.map(g => `<option value="${esc(g.nombre)}"${estado.gradoActivoCalendario === g.nombre ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('');
+  }
 
   if (!unidad) {
     return `
@@ -692,7 +725,7 @@ function plantillaCalendario() {
         <div class="tarjeta" style="text-align:center;padding:50px;color:var(--tinta-suave);">
           <i data-lucide="calendar" style="width:40px;height:40px;margin-bottom:10px;opacity:0.5;"></i>
           <h3>Selecciona una Unidad</h3>
-          <p>Elige una unidad en el selector superior para comenzar a visualizar el calendario.</p>
+          <p>Existen múltiples unidades activas. Elige una en el selector superior para comenzar.</p>
         </div>
       </div>`;
   }
@@ -716,13 +749,13 @@ function plantillaCalendario() {
         if (!activo) return `<div class="celda-dia celda-inactiva"><span class="numero-dia">${d.getDate()}</span></div>`;
         
         const info = estado.gradoActivoCalendario ? getEstadoDiaGrado(fechaStr, actividadesUnidad, estado.gradoActivoCalendario) : { estado: 'libre', tieneEvento: false, ocupadas: 0, capacidad: 5 };
-        const claseColor = !estado.gradoActivoCalendario ? 'celda-libre' : (info.estado === 'lleno' ? 'celda-lleno' : (info.estado === 'medio' ? 'celda-medio' : 'celda-libre'));
+        const claseColor = (estado.gradoActivoCalendario === 'TODOS' || !estado.gradoActivoCalendario) ? 'celda-libre' : (info.estado === 'lleno' ? 'celda-lleno' : (info.estado === 'medio' ? 'celda-medio' : 'celda-libre'));
         
         return `
           <button class="celda-dia ${claseColor}${fechaStr === hoy ? ' celda-hoy' : ''}" onclick="abrirDia('${fechaStr}')">
             ${info.tieneEvento ? '<i data-lucide="flag" class="marca-evento" style="width:11px;height:11px"></i>' : ''}
             <span class="numero-dia">${d.getDate()}</span>
-            ${(estado.gradoActivoCalendario && (info.ocupadas > 0 || info.tieneEvento)) ? `<span class="conteo-dia">${info.ocupadas}/${info.capacidad}</span>` : ''}
+            ${(estado.gradoActivoCalendario && estado.gradoActivoCalendario !== 'TODOS' && (info.ocupadas > 0 || info.tieneEvento)) ? `<span class="conteo-dia">${info.ocupadas}/${info.capacidad}</span>` : ''}
           </button>`;
       }).join('')}
     </div>`).join('');
@@ -736,8 +769,8 @@ function plantillaCalendario() {
             <select class="selector" onchange="seleccionarUnidadActiva(this.value)">${opcionesUnidad}</select>
           </div>
           <div>
-            <label class="etiqueta-inline">Trabajando en Grado</label>
-            <select class="selector" onchange="cambiarGradoActivoCalendario(this.value)" ${estado.sesion.rol === 'profesor' && estado.sesion.gradoAsignado ? 'disabled' : ''}>${opcionesGrados}</select>
+            <label class="etiqueta-inline">Visualizando Grado</label>
+            <select class="selector" onchange="cambiarGradoActivoCalendario(this.value)" ${estado.sesion.rol === 'profesor' ? 'disabled' : ''}>${opcionesGrados}</select>
           </div>
         </div>
         <div style="display:flex;gap:12px;align-items:center;">
@@ -749,7 +782,6 @@ function plantillaCalendario() {
         </div>
       </div>
       ${unidadCerrada ? '<div style="background:#fef3c7;border:1px solid #f59e0b;padding:10px 16px;border-radius:8px;margin-bottom:16px;color:#92400e;font-size:13.5px;display:flex;align-items:center;gap:8px;"><i data-lucide="alert-triangle"></i> <b>Aviso:</b> Esta unidad está cerrada. No se permite el ingreso de nuevas actividades.</div>' : ''}
-      ${!estado.gradoActivoCalendario ? '<div style="background:#e0f2fe;border:1px solid #7dd3fc;padding:10px 16px;border-radius:8px;margin-bottom:16px;color:#0369a1;font-size:13.5px;">ℹ️ Por favor selecciona un <b>Grado</b> en el menú superior para ver la disponibilidad y planificar.</div>' : ''}
 
       <div class="tarjeta calendario-tarjeta">
         <div class="fila-dias-semana">${DIAS_CORTOS.map(d => `<div class="etiqueta-dia-semana">${d}</div>`).join('')}</div>
@@ -773,6 +805,7 @@ function cambiarMes(delta) {
 
 function plantillaPanelDia() {
   const actividadesActuales = actividadesUnidadActual();
+  const gradoPanel = (estado.gradoActivoCalendario && estado.gradoActivoCalendario !== 'TODOS') ? estado.gradoActivoCalendario : (estado.grados[0] ? estado.grados[0].nombre : '');
   const info = getEstadoDiaGrado(estado.diaSeleccionado, actividadesActuales, estado.gradoActivoCalendario);
   const tipoFijo = TIPO_FIJO_POR_ROL[estado.sesion.rol];
   const items = info.delDiaVisible;
@@ -800,7 +833,7 @@ function plantillaPanelDia() {
   if (unidadCerrada) {
     cuerpoAgregar = '<p style="text-align:center;color:var(--tinta-suave);font-size:13px;padding:8px;">Unidad cerrada. No se admiten actividades.</p>';
   } else {
-    cuerpoAgregar = estado.formAbierto ? plantillaFormActividad(tipoFijo) : `<button class="boton boton-secundario boton-ancho" onclick="mostrarFormActividad(null)"><i data-lucide="plus"></i> Agregar actividad para ${esc(estado.gradoActivoCalendario)}</button>`;
+    cuerpoAgregar = estado.formAbierto ? plantillaFormActividad(tipoFijo) : `<button class="boton boton-secundario boton-ancho" onclick="mostrarFormActividad(null)"><i data-lucide="plus"></i> Agregar actividad</button>`;
   }
 
   return `
@@ -809,12 +842,12 @@ function plantillaPanelDia() {
         <div class="panel-encabezado">
           <div>
             <p class="panel-fecha">${formatFechaLarga(estado.diaSeleccionado)}</p>
-            <p class="panel-cupo">Grado activo: <b>${esc(estado.gradoActivoCalendario)}</b></p>
+            <p class="panel-cupo">Vista actual: <b>${estado.gradoActivoCalendario === 'TODOS' ? 'Todos los grados' : esc(estado.gradoActivoCalendario)}</b></p>
           </div>
           <button class="boton-icono" onclick="cerrarDia()"><i data-lucide="x"></i></button>
         </div>
         <div class="panel-cuerpo">
-          ${items.length === 0 && !estado.formAbierto ? '<p class="panel-sin-actividades">No hay actividades visibles para este grado en este día.</p>' : ''}
+          ${items.length === 0 && !estado.formAbierto ? '<p class="panel-sin-actividades">No hay actividades visibles en este día.</p>' : ''}
           ${itemsHtml}
           ${cuerpoAgregar}
         </div>
@@ -853,6 +886,8 @@ function plantillaFormActividad(tipoFijo) {
       </div>`;
   }
 
+  const gradosSelect = estado.grados.map(g => `<option value="${esc(g.nombre)}"${(actividadEnEdicion && actividadEnEdicion.curso === g.nombre) || (!actividadEnEdicion && estado.gradoActivoCalendario && estado.gradoActivoCalendario !== 'TODOS' && estado.gradoActivoCalendario === g.nombre) ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('');
+
   return `
     <form class="form-actividad" onsubmit="manejarEnvioActividad(event)">
       ${selectorTipo}
@@ -860,11 +895,14 @@ function plantillaFormActividad(tipoFijo) {
       ${selectorAlcanceGlobal}
       <label class="etiqueta">Título</label>
       <input class="campo" id="campo-titulo-actividad" value="${actividadEnEdicion ? esc(actividadEnEdicion.titulo) : ''}" placeholder="Nombre de la actividad">
+      
       <div id="bloque-campos-tarea" style="${tipoInicial === 'tarea' ? '' : 'display:none'}">
+        <label class="etiqueta">Grado Destino</label>
+        <select class="selector" id="campo-grado-destino" style="margin-bottom:10px;">${gradosSelect}</select>
         <label class="etiqueta">Materia</label>
         <input class="campo" id="campo-materia" value="${actividadEnEdicion ? esc(actividadEnEdicion.materia) : ''}" placeholder="Ej. Matemática">
-        ${!esGlobal ? `<p style="font-size:11.5px;color:#52655f;margin-top:4px;">Asignado al grado: <b>${esc(estado.gradoActivoCalendario)}</b></p>` : ''}
       </div>
+
       <label class="etiqueta">Detalle o instrucciones</label>
       <textarea class="campo campo-textarea" id="campo-descripcion-actividad" rows="3">${actividadEnEdicion ? esc(actividadEnEdicion.descripcion) : ''}</textarea>
       <div id="error-form-actividad"></div>
