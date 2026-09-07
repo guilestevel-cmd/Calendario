@@ -308,7 +308,6 @@ function pedirConfirmarLimpiarUnidad(unidadId) {
   render();
 }
 
-/* ============================== GESTIÓN DE GRADOS =============================== */
 function abrirFormGrado() { estado.formGradoAbierto = true; render(); }
 function cerrarFormGrado() { estado.formGradoAbierto = false; render(); }
 
@@ -343,7 +342,6 @@ function pedirConfirmarEliminarGrado(id) {
   render();
 }
 
-/* ============================== ACTIVIDADES =============================== */
 function abrirDia(fecha) {
   if (!estado.unidadActivaId) { alert('Por favor selecciona una Unidad Activa primero.'); return; }
   if (!estado.gradoActivoCalendario) { alert('Por favor selecciona un Grado para trabajar primero.'); return; }
@@ -477,7 +475,6 @@ function pedirConfirmarLimpiarActividades() {
   render();
 }
 
-/* ============================== GESTIÓN DE USUARIOS =============================== */
 function elegirRolNuevoUsuario(rol) {
   rolNuevoUsuario = rol;
   document.querySelectorAll('#form-usuario .opcion-rol').forEach(btn => {
@@ -561,7 +558,6 @@ async function guardarNombreColegio(input) {
   await api('configuracion', { metodo: 'POST', datos: { nombreColegio: valor } });
 }
 
-/* ============================== RENDER PRINCIPAL =============================== */
 function render() {
   const raiz = document.getElementById('app');
   if (estado.cargando) { raiz.innerHTML = `<div class="pantalla-carga"><i data-lucide="loader-2" class="girando"></i><p>Cargando planeador...</p></div>`; return; }
@@ -724,7 +720,7 @@ function plantillaCalendario() {
         
         return `
           <button class="celda-dia ${claseColor}${fechaStr === hoy ? ' celda-hoy' : ''}" onclick="abrirDia('${fechaStr}')">
-            ${info.tieneEvento ? `<i data-lucide="flag" class="marca-evento" style="width:11px;height:11px"></i>` : ''}
+            ${info.tieneEvento ? '<i data-lucide="flag" class="marca-evento" style="width:11px;height:11px"></i>' : ''}
             <span class="numero-dia">${d.getDate()}</span>
             ${(estado.gradoActivoCalendario && (info.ocupadas > 0 || info.tieneEvento)) ? `<span class="conteo-dia">${info.ocupadas}/${info.capacidad}</span>` : ''}
           </button>`;
@@ -752,8 +748,8 @@ function plantillaCalendario() {
           </div>
         </div>
       </div>
-      ${unidadCerrada ? `<div style="background:#fef3c7;border:1px solid #f59e0b;padding:10px 16px;border-radius:8px;margin-bottom:16px;color:#92400e;font-size:13.5px;display:flex;align-items:center;gap:8px;"><i data-lucide="alert-triangle"></i> <b>Aviso:</b> Esta unidad está cerrada. No se permite el ingreso de nuevas actividades.</div>` : ''}
-      ${!estado.gradoActivoCalendario ? `<div style="background:#e0f2fe;border:1px solid #7dd3fc;padding:10px 16px;border-radius:8px;margin-bottom:16px;color:#0369a1;font-size:13.5px;">ℹ️ Por favor selecciona un <b>Grado</b> en el menú superior para ver la disponibilidad y planificar.</div>` : ''}
+      ${unidadCerrada ? '<div style="background:#fef3c7;border:1px solid #f59e0b;padding:10px 16px;border-radius:8px;margin-bottom:16px;color:#92400e;font-size:13.5px;display:flex;align-items:center;gap:8px;"><i data-lucide="alert-triangle"></i> <b>Aviso:</b> Esta unidad está cerrada. No se permite el ingreso de nuevas actividades.</div>' : ''}
+      ${!estado.gradoActivoCalendario ? '<div style="background:#e0f2fe;border:1px solid #7dd3fc;padding:10px 16px;border-radius:8px;margin-bottom:16px;color:#0369a1;font-size:13.5px;">ℹ️ Por favor selecciona un <b>Grado</b> en el menú superior para ver la disponibilidad y planificar.</div>' : ''}
 
       <div class="tarjeta calendario-tarjeta">
         <div class="fila-dias-semana">${DIAS_CORTOS.map(d => `<div class="etiqueta-dia-semana">${d}</div>`).join('')}</div>
@@ -802,7 +798,7 @@ function plantillaPanelDia() {
 
   let cuerpoAgregar = '';
   if (unidadCerrada) {
-    cuerpoAgregar = `<p style="text-align:center;color:var(--tinta-suave);font-size:13px;padding:8px;">Unidad cerrada. No se admiten actividades.</p>`;
+    cuerpoAgregar = '<p style="text-align:center;color:var(--tinta-suave);font-size:13px;padding:8px;">Unidad cerrada. No se admiten actividades.</p>';
   } else {
     cuerpoAgregar = estado.formAbierto ? plantillaFormActividad(tipoFijo) : `<button class="boton boton-secundario boton-ancho" onclick="mostrarFormActividad(null)"><i data-lucide="plus"></i> Agregar actividad para ${esc(estado.gradoActivoCalendario)}</button>`;
   }
@@ -818,7 +814,7 @@ function plantillaPanelDia() {
           <button class="boton-icono" onclick="cerrarDia()"><i data-lucide="x"></i></button>
         </div>
         <div class="panel-cuerpo">
-          ${items.length === 0 && !estado.formAbierto ? `<p class="panel-sin-actividades">No hay actividades visibles para este grado en este día.</p>` : ''}
+          ${items.length === 0 && !estado.formAbierto ? '<p class="panel-sin-actividades">No hay actividades visibles para este grado en este día.</p>' : ''}
           ${itemsHtml}
           ${cuerpoAgregar}
         </div>
@@ -879,7 +875,6 @@ function plantillaFormActividad(tipoFijo) {
     </form>`;
 }
 
-/* ============================== UNIDADES =============================== */
 function plantillaUnidades() {
   if (estado.sesion.rol !== 'admin') return plantillaEstadoVacio('Acceso Restringido', 'Solo el administrador del sistema puede gestionar las unidades.');
   const ordenadas = unidadesOrdenadas();
@@ -938,7 +933,6 @@ function plantillaUnidades() {
     </div>`;
 }
 
-/* ============================== SECCIÓN GRADOS (ADMIN) =============================== */
 function plantillaGrados() {
   if (estado.sesion.rol !== 'admin') return '';
   const formHtml = estado.formGradoAbierto ? `
@@ -967,7 +961,7 @@ function plantillaGrados() {
       </div>
       ${formHtml}
       <div class="lista-unidades">
-        ${estado.grados.length === 0 && !estado.formGradoAbierto ? `<p style="color:var(--tinta-suave);padding:10px;">No hay grados registrados todavía.</p>` : ''}
+        ${estado.grados.length === 0 && !estado.formGradoAbierto ? '<p style="color:var(--tinta-suave);padding:10px;">No hay grados registrados todavía.</p>' : ''}
         ${estado.grados.map(g => `
           <div class="tarjeta-unidad">
             <div class="tarjeta-unidad-cuerpo" style="cursor:default;">
@@ -981,7 +975,6 @@ function plantillaGrados() {
     </div>`;
 }
 
-/* ============================== USUARIOS =============================== */
 function plantillaUsuarios() {
   if (estado.sesion.rol !== 'admin') return '';
   const opcionesRol = Object.entries(ROLES).map(([clave, r]) => `
@@ -989,7 +982,7 @@ function plantillaUsuarios() {
       <i data-lucide="${r.icono}"></i><span>${r.label}</span>
     </button>`).join('');
 
-  const gradosSelect = `<option value="">-- Sin grado asignado --</option>` +
+  const gradosSelect = '<option value="">-- Sin grado asignado --</option>' +
     estado.grados.map(g => `<option value="${esc(g.nombre)}"${usuarioEnEdicion && usuarioEnEdicion.gradoAsignado === g.nombre ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('');
 
   return `
@@ -1050,31 +1043,30 @@ function mostrarFormRestablecer(id) {
   if (el) el.style.display = el.style.display === 'none' ? '' : 'none';
 }
 
-/* ============================== REPORTE =============================== */
 function plantillaReporte() {
   if (!estado.unidades.length) return plantillaEstadoVacio('Sin unidades', 'No hay unidades registradas.');
 
   const rolActual = estado.sesion.rol;
   const gradoAsignadoProfesor = estado.sesion.gradoAsignado || '';
 
-  const opcionesUnidad = `<option value="" disabled ${!estado.unidadReporteId ? 'selected' : ''}>Seleccione una unidad...</option>` +
-    `<option value="todas"${estado.unidadReporteId === 'todas' ? ' selected' : ''}>Todas las unidades (General)</option>` +
+  const opcionesUnidad = '<option value="" disabled ' + (!estado.unidadReporteId ? 'selected' : '') + '>Seleccione una unidad...</option>' +
+    '<option value="todas"' + (estado.unidadReporteId === 'todas' ? ' selected' : '') + '>Todas las unidades (General)</option>' +
     unidadesOrdenadas().map(u => `<option value="${u.id}"${u.id === estado.unidadReporteId ? ' selected' : ''}>${esc(u.nombre)}</option>`).join('');
 
   let opcionesGrados = '';
   if (rolActual === 'profesor') {
     if (!gradoAsignadoProfesor) {
-      opcionesGrados = `<option value="" disabled selected>No tienes grado asignado</option>`;
+      opcionesGrados = '<option value="" disabled selected>No tienes grado asignado</option>';
     } else {
       opcionesGrados = `<option value="${esc(gradoAsignadoProfesor)}" selected>${esc(gradoAsignadoProfesor)}</option>`;
       if (!estado.gradoFiltroReporte) estado.gradoFiltroReporte = gradoAsignadoProfesor;
     }
   } else if (rolActual === 'comision') {
-    opcionesGrados = `<option value="Profesores" selected>Profesores</option>`;
+    opcionesGrados = '<option value="Profesores" selected>Profesores</option>';
     if (!estado.gradoFiltroReporte) estado.gradoFiltroReporte = 'Profesores';
   } else {
-    opcionesGrados = `<option value="" disabled ${!estado.gradoFiltroReporte ? 'selected' : ''}>Seleccione destino...</option>` +
-      `<option value="TODOS"${estado.gradoFiltroReporte === 'TODOS' ? ' selected' : ''}>Todos los grados (General)</option>` +
+    opcionesGrados = '<option value="" disabled ' + (!estado.gradoFiltroReporte ? 'selected' : '') + '>Seleccione destino...</option>' +
+      '<option value="TODOS"' + (estado.gradoFiltroReporte === 'TODOS' ? ' selected' : '') + '>Todos los grados (General)</option>' +
       estado.grados.map(g => `<option value="${esc(g.nombre)}"${estado.gradoFiltroReporte === g.nombre ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('');
   }
 
@@ -1148,7 +1140,7 @@ function plantillaReporte() {
           <h1 class="reporte-titulo">Plan de Actividades</h1>
           <p class="reporte-unidad">${esc(unidadSeleccionadaTexto)} – ${esc(gradoSeleccionadoTexto)}</p>
         </div>
-        ${items.length === 0 ? `<p class="reporte-vacio">No hay actividades registradas para esta selección.</p>` : `
+        ${items.length === 0 ? '<p class="reporte-vacio">No hay actividades registradas para esta selección.</p>' : `
           <table class="tabla-reporte">
             <thead><tr><th>Fecha</th><th>Tipo</th><th>Actividad</th><th>Detalle</th><th>Responsable</th></tr></thead>
             <tbody>${filasTabla}</tbody>
