@@ -27,6 +27,54 @@ body {
 }
 
 /* ================================================================= */
+/* PANTALLA DE ACCESO / LOGIN (Centrada y con ancho controlado)      */
+/* ================================================================= */
+
+.acceso {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+  box-sizing: border-box;
+  background-color: var(--fondo);
+}
+
+.acceso-tarjeta {
+  background-color: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  padding: 32px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  box-sizing: border-box;
+}
+
+.acceso-marca {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 20px;
+  font-weight: bold;
+  color: var(--primario);
+  margin-bottom: 24px;
+}
+
+.acceso-tarjeta h1 {
+  font-size: 22px;
+  font-weight: bold;
+  margin: 0 0 20px 0;
+  color: var(--tinta);
+}
+
+.acceso-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ================================================================= */
 /* BARRA LATERAL Y NAVEGACIÓN                                        */
 /* ================================================================= */
 
