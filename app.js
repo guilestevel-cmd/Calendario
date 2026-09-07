@@ -163,9 +163,9 @@ async function iniciar() {
     
     estado.configuracion = Object.assign({ nombreColegio: 'Instituto de Educación Media', calendarioCerrado: 'false' }, configuracion || {});
     
-    // Si el rol es global (admin, comision, direccion), se selecciona 'TODOS' por defecto. Si es profesor, se deja vacío.
+    // Configuración por defecto: Roles globales inician en 'Profesores', profesores se quedan vacíos.
     if (estado.sesion && esRolGlobal(estado.sesion.rol)) {
-      estado.gradoActivoCalendario = 'TODOS';
+      estado.gradoActivoCalendario = 'Profesores';
     } else {
       estado.gradoActivoCalendario = '';
     }
@@ -203,7 +203,7 @@ async function manejarEnvioPrimerAdmin(ev) {
     estado.usuarios = resultado.lista;
     estado.hayUsuarios = true;
     estado.sesion = { usuario, nombre, rol: 'admin' };
-    estado.gradoActivoCalendario = 'TODOS';
+    estado.gradoActivoCalendario = 'Profesores';
     try { localStorage.setItem('planea-sesion', JSON.stringify(estado.sesion)); } catch (e) {}
     render();
   } catch (e) { errorEl.innerHTML = mensajeError('Error de conexión.'); }
@@ -222,7 +222,7 @@ async function manejarEnvioLogin(ev) {
     estado.sesion = { usuario: resultado.usuario, nombre: resultado.nombre, rol: resultado.rol };
     
     if (esRolGlobal(estado.sesion.rol)) {
-      estado.gradoActivoCalendario = 'TODOS';
+      estado.gradoActivoCalendario = 'Profesores';
     } else {
       estado.gradoActivoCalendario = '';
     }
@@ -322,7 +322,7 @@ function pedirConfirmarEliminarGrado(id) {
       const resultado = await api('grados', { metodo: 'POST', accion: 'eliminar', datos: { id } });
       estado.grados = resultado.lista || [];
       if (estado.gradoActivoCalendario === g.nombre) {
-        estado.gradoActivoCalendario = esRolGlobal(estado.sesion?.rol) ? 'TODOS' : '';
+        estado.gradoActivoCalendario = esRolGlobal(estado.sesion?.rol) ? 'Profesores' : '';
       }
     },
   };
@@ -1089,4 +1089,5 @@ function plantillaConfirmar() {
       </div>
     </div>`;
 }
+
 document.addEventListener('DOMContentLoaded', iniciar);
