@@ -45,30 +45,7 @@ try {
 
 function pad(n) { return String(n).padStart(2, '0'); }
 function formatFecha(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
-
-function normalizarFecha(s) {
-  if (!s) return '';
-  if (s instanceof Date) return formatFecha(s);
-  s = String(s).trim();
-  if (s.includes('/')) {
-    const partes = s.split('/');
-    if (partes.length === 3) {
-      if (partes[0].length === 4) {
-        return `${partes[0]}-${partes[1].padStart(2, '0')}-${partes[2].padStart(2, '0')}`;
-      } else {
-        return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
-      }
-    }
-  }
-  return s;
-}
-
-function parseFecha(s) { 
-  const norm = normalizarFecha(s);
-  const [y, m, d] = norm.split('-').map(Number); 
-  return new Date(y, m - 1, d); 
-}
-
+function parseFecha(s) { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); }
 function formatFechaLarga(s) {
   const d = parseFecha(s);
   return `${DIAS_LARGOS[(d.getDay() + 6) % 7]} ${d.getDate()} de ${MESES[d.getMonth()]}`;
@@ -78,10 +55,7 @@ function formatFechaCorta(s) {
   return `${d.getDate()} de ${MESES[d.getMonth()].slice(0, 3)}`;
 }
 function hoyStr() { return formatFecha(new Date()); }
-function fechaValida(s) { 
-  const norm = normalizarFecha(s);
-  return typeof norm === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(norm); 
-}
+function fechaValida(s) { return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s); }
 function generarId() {
   if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
   return 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
@@ -180,15 +154,10 @@ async function iniciar() {
     const [unidades, actividades, grados, configuracion] = await Promise.all([
       api('unidades'), api('actividades'), api('grados'), api('configuracion'),
     ]);
-    
     estado.unidades = (Array.isArray(unidades) ? unidades : [])
-      .map(u => u ? Object.assign({}, u, { fechaInicio: normalizarFecha(u.fechaInicio), fechaFin: normalizarFecha(u.fechaFin) }) : u)
       .filter(u => u && u.id && u.nombre && fechaValida(u.fechaInicio) && fechaValida(u.fechaFin));
-
     estado.actividades = (Array.isArray(actividades) ? actividades : [])
-      .map(a => a ? Object.assign({}, a, { fecha: normalizarFecha(a.fecha) }) : a)
       .filter(a => a && a.id && a.unidadId && fechaValida(a.fecha) && a.tipo && a.titulo);
-
     estado.grados = Array.isArray(grados) ? grados : [];
     
     estado.configuracion = Object.assign({ nombreColegio: 'Instituto de Educación Media', calendarioCerrado: 'false' }, configuracion || {});
@@ -286,11 +255,11 @@ async function manejarEnvioUnidad(ev) {
   try {
     if (unidadEnEdicion) {
       const resultado = await api('unidades', { metodo: 'POST', accion: 'editar', datos: { id: unidadEnEdicion.id, nombre, fechaInicio, fechaFin } });
-      estado.unidades = (resultado.lista || estado.unidades).map(u => u ? Object.assign({}, u, { fechaInicio: normalizarFecha(u.fechaInicio), fechaFin: normalizarFecha(u.fechaFin) }) : u);
+      estado.unidades = resultado.lista || estado.unidades;
     } else {
       const nueva = { id: generarId(), nombre, fechaInicio, fechaFin };
       const resultado = await api('unidades', { metodo: 'POST', accion: 'crear', datos: nueva });
-      estado.unidades = (resultado.lista || estado.unidades).map(u => u ? Object.assign({}, u, { fechaInicio: normalizarFecha(u.fechaInicio), fechaFin: normalizarFecha(u.fechaFin) }) : u);
+      estado.unidades = resultado.lista || estado.unidades;
       if (!estado.unidadActivaId) { estado.unidadActivaId = nueva.id; const di = parseFecha(nueva.fechaInicio); estado.mesActual = { year: di.getFullYear(), month: di.getMonth() }; }
     }
     estado.formUnidadAbierto = false; unidadEnEdicion = null; render();
@@ -304,9 +273,8 @@ function pedirConfirmarEliminarUnidad(id) {
     mensaje: `¿Eliminar la unidad "${u.nombre}" y sus actividades?`,
     accion: async () => {
       const resultado = await api('unidades', { metodo: 'POST', accion: 'eliminar', datos: { id } });
-      estado.unidades = (resultado.lista || []).map(u => u ? Object.assign({}, u, { fechaInicio: normalizarFecha(u.fechaInicio), fechaFin: normalizarFecha(u.fechaFin) }) : u);
-      const acts = await api('actividades');
-      estado.actividades = (Array.isArray(acts) ? acts : []).map(a => a ? Object.assign({}, a, { fecha: normalizarFecha(a.fecha) }) : a);
+      estado.unidades = resultado.lista || [];
+      estado.actividades = await api('actividades');
       if (estado.unidadActivaId === id) estado.unidadActivaId = null;
     },
   };
@@ -424,7 +392,7 @@ async function manejarEnvioActividad(ev) {
     if (actividadEnEdicion) {
       const editada = Object.assign({}, actividadEnEdicion, { tipo, titulo, descripcion, materia, curso });
       const resultado = await api('actividades', { metodo: 'POST', accion: 'editar', datos: editada });
-      estado.actividades = (resultado.lista || estado.actividades).map(a => a ? Object.assign({}, a, { fecha: normalizarFecha(a.fecha) }) : a);
+      estado.actividades = resultado.lista || estado.actividades;
     } else {
       const nueva = {
         id: generarId(), unidadId: estado.unidadActivaId, fecha: estado.diaSeleccionado,
@@ -432,7 +400,7 @@ async function manejarEnvioActividad(ev) {
         rol: estado.sesion.rol, responsable: estado.sesion.nombre, creadoEn: Date.now(),
       };
       const resultado = await api('actividades', { metodo: 'POST', accion: 'crear', datos: nueva });
-      estado.actividades = (resultado.lista || estado.actividades).map(a => a ? Object.assign({}, a, { fecha: normalizarFecha(a.fecha) }) : a);
+      estado.actividades = resultado.lista || estado.actividades;
     }
     estado.formAbierto = false;
     actividadEnEdicion = null;
@@ -450,7 +418,7 @@ function pedirConfirmarEliminarActividad(id) {
     mensaje: `¿Eliminar "${a.titulo}"?`,
     accion: async () => {
       const resultado = await api('actividades', { metodo: 'POST', accion: 'eliminar', datos: { id } });
-      estado.actividades = (resultado.lista || estado.actividades).map(a => a ? Object.assign({}, a, { fecha: normalizarFecha(a.fecha) }) : a);
+      estado.actividades = resultado.lista || estado.actividades;
     },
   };
   render();
@@ -461,7 +429,7 @@ function pedirConfirmarLimpiarActividades() {
     mensaje: '¿Estás seguro de restablecer y borrar TODAS las actividades de prueba creadas en el sistema?',
     accion: async () => {
       const resultado = await api('actividades', { metodo: 'POST', accion: 'limpiar_todas' });
-      estado.actividades = (resultado.lista || []).map(a => a ? Object.assign({}, a, { fecha: normalizarFecha(a.fecha) }) : a);
+      estado.actividades = resultado.lista || [];
     }
   };
   render();
@@ -732,6 +700,7 @@ function plantillaCalendario() {
         ${filas}
       </div>
 
+      <!-- Leyenda discreta de colores en la parte inferior -->
       <div class="leyenda-calendario" style="display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:20px;margin-top:16px;padding-top:10px;border-top:1px solid #e2e8f0;font-size:11.5px;color:#64748b;">
         <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;background-color:#ffffff;border:1px solid #cbd5e1;border-radius:50%;"></span><span>Libre</span></div>
         <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;background-color:#f1f5f9;border:1px solid #94a3b8;border-radius:50%;"></span><span>Medio cargado</span></div>
@@ -859,8 +828,8 @@ function plantillaUnidades() {
       <label class="etiqueta">Nombre de la unidad</label>
       <input class="campo" id="campo-nombre-unidad" value="${unidadEnEdicion ? esc(unidadEnEdicion.nombre) : ''}">
       <div class="fila-campos">
-        <div><label class="etiqueta">Inicio</label><input type="date" class="campo" id="campo-fecha-inicio-unidad" value="${unidadEnEdicion ? normalizarFecha(unidadEnEdicion.fechaInicio) : ''}"></div>
-        <div><label class="etiqueta">Fin</label><input type="date" class="campo" id="campo-fecha-fin-unidad" value="${unidadEnEdicion ? normalizarFecha(unidadEnEdicion.fechaFin) : ''}"></div>
+        <div><label class="etiqueta">Inicio</label><input type="date" class="campo" id="campo-fecha-inicio-unidad" value="${unidadEnEdicion ? unidadEnEdicion.fechaInicio : ''}"></div>
+        <div><label class="etiqueta">Fin</label><input type="date" class="campo" id="campo-fecha-fin-unidad" value="${unidadEnEdicion ? unidadEnEdicion.fechaFin : ''}"></div>
       </div>
       <div id="error-form-unidad"></div>
       <div class="fila-botones">
