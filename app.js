@@ -384,7 +384,6 @@ async function manejarEnvioActividad(ev) {
   }
 
   const actividadesActuales = actividadesUnidadActual();
-  const gradoEvaluacion = curso === 'TODOS' ? (estado.grados[0] ? estado.grados[0].nombre : '') : curso;
   const estadoDiaReal = {
     eventos: actividadesActuales.filter(a => a.fecha === estado.diaSeleccionado && a.tipo === 'evento' && (!actividadEnEdicion || a.id !== actividadEnEdicion.id)),
     tareas: actividadesActuales.filter(a => a.fecha === estado.diaSeleccionado && a.tipo === 'tarea' && (!actividadEnEdicion || a.id !== actividadEnEdicion.id)),
@@ -802,12 +801,15 @@ function plantillaPanelDia() {
 }
 
 function plantillaFormActividad(tipoFijo) {
-  const tipoInicial = actividadEnEdicion ? actividadEnEdicion.tipo : (tipoFijo || 'tarea');
-  const esGlobal = esRolGlobal(estado.sesion.rol);
-  const esAdmin = estado.sesion.rol === 'admin';
+  const rolActual = estado.sesion.rol;
+  const esComisionODireccion = (rolActual === 'comision' || rolActual === 'direccion');
+  
+  // Si es comisión o dirección, el tipo es fijo en 'evento' y no tienen opción de tarea
+  const tipoInicial = esComisionODireccion ? 'evento' : (actividadEnEdicion ? actividadEnEdicion.tipo : (tipoFijo || 'tarea'));
+  const esGlobal = esRolGlobal(rolActual);
 
-  // Solo se muestra el selector de tipo (Evento/Tarea) si es Administrador (tipoFijo === null)
-  const selectorTipo = (tipoFijo === null) ? `
+  // Selector de tipo solo se muestra para Administrador (cuando tipoFijo === null y no es comisión/dirección)
+  const selectorTipo = (!esComisionODireccion && tipoFijo === null) ? `
     <div class="selector-tipo">
       <button type="button" id="btn-tipo-evento" class="opcion-tipo${tipoInicial === 'evento' ? ' opcion-tipo-activa' : ''}" onclick="alternarTipoActividad('evento')"><i data-lucide="flag"></i> Evento</button>
       <button type="button" id="btn-tipo-tarea" class="opcion-tipo${tipoInicial === 'tarea' ? ' opcion-tipo-activa' : ''}" onclick="alternarTipoActividad('tarea')"><i data-lucide="book-open"></i> Tarea</button>
@@ -816,6 +818,7 @@ function plantillaFormActividad(tipoFijo) {
   let selectorAlcanceGlobal = '';
   if (esGlobal) {
     const cursoActual = actividadEnEdicion ? (actividadEnEdicion.curso || '') : '';
+    // Al crear por primera vez (!actividadEnEdicion), por defecto ambas casillas van desmarcadas (false)
     const checkMaestrosChecked = actividadEnEdicion ? (cursoActual === 'Profesores' || cursoActual === 'TODOS') : false;
     const checkTodosChecked = actividadEnEdicion ? (cursoActual === 'TODOS') : false;
 
