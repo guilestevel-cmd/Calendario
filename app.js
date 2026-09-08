@@ -165,6 +165,8 @@ async function iniciar() {
     
     if (estado.sesion && esRolGlobal(estado.sesion.rol)) {
       estado.gradoActivoCalendario = 'Profesores';
+    } else if (estado.sesion && estado.sesion.rol === 'profesor' && estado.sesion.grado) {
+      estado.gradoActivoCalendario = estado.sesion.grado;
     } else {
       estado.gradoActivoCalendario = '';
     }
@@ -196,12 +198,12 @@ async function manejarEnvioPrimerAdmin(ev) {
   if (contrasena.length < 4) { errorEl.innerHTML = mensajeError('Mínimo 4 caracteres.'); return; }
 
   try {
-    const nuevo = { id: generarId(), nombre, usuario, contrasena, rol: 'admin' };
+    const nuevo = { id: generarId(), nombre, usuario, contrasena, rol: 'admin', grado: '' };
     const resultado = await api('usuarios', { metodo: 'POST', accion: 'crear', datos: nuevo });
     if (!resultado.ok) { errorEl.innerHTML = mensajeError(resultado.error); return; }
     estado.usuarios = resultado.lista;
     estado.hayUsuarios = true;
-    estado.sesion = { usuario, nombre, rol: 'admin' };
+    estado.sesion = { usuario, nombre, rol: 'admin', grado: '' };
     estado.gradoActivoCalendario = 'Profesores';
     try { localStorage.setItem('planea-sesion', JSON.stringify(estado.sesion)); } catch (e) {}
     render();
@@ -218,10 +220,12 @@ async function manejarEnvioLogin(ev) {
   try {
     const resultado = await api('sesion', { metodo: 'POST', accion: 'iniciar', datos: { usuario, contrasena } });
     if (!resultado.ok) { errorEl.innerHTML = mensajeError(resultado.error); return; }
-    estado.sesion = { usuario: resultado.usuario, nombre: resultado.nombre, rol: resultado.rol };
+    estado.sesion = { usuario: resultado.usuario, nombre: resultado.nombre, rol: resultado.rol, grado: resultado.grado || '' };
     
     if (esRolGlobal(estado.sesion.rol)) {
       estado.gradoActivoCalendario = 'Profesores';
+    } else if (estado.sesion.rol === 'profesor' && estado.sesion.grado) {
+      estado.gradoActivoCalendario = estado.sesion.grado;
     } else {
       estado.gradoActivoCalendario = '';
     }
@@ -444,10 +448,9 @@ function pedirConfirmarLimpiarActividades() {
 
 function elegirRolNuevoUsuario(rol) {
   rolNuevoUsuario = rol;
-  document.querySelectorAll('#form-usuario .opcion-rol').forEach(btn => {
-    btn.classList.toggle('opcion-rol-activa', btn.dataset.rol === rol);
-  });
+  render();
 }
+
 function abrirFormUsuario(id) {
   if (id) {
     usuarioEnEdicion = estado.usuarios.find(u => u.id === id);
@@ -466,19 +469,22 @@ async function manejarEnvioUsuario(ev) {
   const nombre = document.getElementById('campo-nombre-usuario').value.trim();
   const usuario = document.getElementById('campo-usuario-usuario').value.trim();
   const contrasena = document.getElementById('campo-contrasena-usuario').value;
+  const gradoEl = document.getElementById('campo-grado-usuario');
+  const grado = (rolNuevoUsuario === 'profesor' && gradoEl) ? gradoEl.value : '';
   const errorEl = document.getElementById('error-form-usuario');
 
   if (!nombre || !usuario) { errorEl.innerHTML = mensajeError('Completa nombre y usuario.'); return; }
+  if (rolNuevoUsuario === 'profesor' && !grado) { errorEl.innerHTML = mensajeError('Debe asignar un grado al profesor.'); return; }
   if (!usuarioEnEdicion && contrasena.length < 4) { errorEl.innerHTML = mensajeError('Mínimo 4 caracteres para contraseña.'); return; }
 
   try {
     if (usuarioEnEdicion) {
-      const datosEdit = { id: usuarioEnEdicion.id, nombre, usuario, contrasena, rol: rolNuevoUsuario };
+      const datosEdit = { id: usuarioEnEdicion.id, nombre, usuario, contrasena, rol: rolNuevoUsuario, grado };
       const resultado = await api('usuarios', { metodo: 'POST', accion: 'editar', datos: datosEdit });
       if (!resultado.ok) { errorEl.innerHTML = mensajeError(resultado.error); return; }
       estado.usuarios = resultado.lista;
     } else {
-      const nuevo = { id: generarId(), nombre, usuario, contrasena, rol: rolNuevoUsuario };
+      const nuevo = { id: generarId(), nombre, usuario, contrasena, rol: rolNuevoUsuario, grado };
       const resultado = await api('usuarios', { metodo: 'POST', accion: 'crear', datos: nuevo });
       if (!resultado.ok) { errorEl.innerHTML = mensajeError(resultado.error); return; }
       estado.usuarios = resultado.lista;
@@ -618,7 +624,7 @@ function plantillaBarra() {
           <i data-lucide="${rol ? rol.icono : 'user'}"></i>
           <div>
             <p class="barra-usuario-nombre">${esc(estado.sesion.nombre)}</p>
-            <p class="barra-usuario-rol">${rol ? rol.label : estado.sesion.rol}</p>
+            <p class="barra-usuario-rol">${rol ? rol.label : estado.sesion.rol} ${estado.sesion.grado ? `(${esc(estado.sesion.grado)})` : ''}</p>
           </div>
         </div>
         <button class="barra-salir" onclick="cerrarSesion()" title="Salir"><i data-lucide="log-out"></i></button>
@@ -643,6 +649,7 @@ function plantillaCalendario() {
   if (esGlobal) {
     opcionesGrados += `<option value="TODOS"${estado.gradoActivoCalendario === 'TODOS' ? ' selected' : ''}>-- Todos los grados (General) --</option>`;
   } else {
+    // Si es un profesor con grado asignado por defecto, aseguramos que aparezca seleccionado
     opcionesGrados += `<option value="" disabled ${!estado.gradoActivoCalendario ? 'selected' : ''}>-- Seleccione un grado --</option>`;
   }
 
@@ -710,7 +717,7 @@ function plantillaCalendario() {
           </div>
           <div>
             <label class="etiqueta-inline">Trabajando en Grado</label>
-            <select class="selector" onchange="cambiarGradoActivoCalendario(this.value)">${opcionesGrados}</select>
+            <select class="selector" onchange="cambiarGradoActivoCalendario(this.value)" ${!esGlobal && estado.sesion.grado ? 'disabled title="Grado asignado por administración"' : ''}>${opcionesGrados}</select>
           </div>
         </div>
         <div style="display:flex;gap:12px;align-items:center;">
@@ -804,11 +811,9 @@ function plantillaFormActividad(tipoFijo) {
   const rolActual = estado.sesion.rol;
   const esComisionODireccion = (rolActual === 'comision' || rolActual === 'direccion');
   
-  // Si es comisión o dirección, el tipo es fijo en 'evento' y no tienen opción de tarea
   const tipoInicial = esComisionODireccion ? 'evento' : (actividadEnEdicion ? actividadEnEdicion.tipo : (tipoFijo || 'tarea'));
   const esGlobal = esRolGlobal(rolActual);
 
-  // Selector de tipo solo se muestra para Administrador (cuando tipoFijo === null y no es comisión/dirección)
   const selectorTipo = (!esComisionODireccion && tipoFijo === null) ? `
     <div class="selector-tipo">
       <button type="button" id="btn-tipo-evento" class="opcion-tipo${tipoInicial === 'evento' ? ' opcion-tipo-activa' : ''}" onclick="alternarTipoActividad('evento')"><i data-lucide="flag"></i> Evento</button>
@@ -818,7 +823,6 @@ function plantillaFormActividad(tipoFijo) {
   let selectorAlcanceGlobal = '';
   if (esGlobal) {
     const cursoActual = actividadEnEdicion ? (actividadEnEdicion.curso || '') : '';
-    // Al crear por primera vez (!actividadEnEdicion), por defecto ambas casillas van desmarcadas (false)
     const checkMaestrosChecked = actividadEnEdicion ? (cursoActual === 'Profesores' || cursoActual === 'TODOS') : false;
     const checkTodosChecked = actividadEnEdicion ? (cursoActual === 'TODOS') : false;
 
@@ -950,6 +954,18 @@ function plantillaUsuarios() {
       <i data-lucide="${r.icono}"></i><span>${r.label}</span>
     </button>`).join('');
 
+  const gradoActualForm = usuarioEnEdicion ? (usuarioEnEdicion.grado || '') : '';
+  const opcionesGradosUsuario = estado.grados.map(g => `<option value="${esc(g.nombre)}"${gradoActualForm === g.nombre ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('');
+
+  const bloqueGradoProfesor = `
+    <div style="margin-top:12px;${rolNuevoUsuario === 'profesor' ? '' : 'display:none;'}">
+      <label class="etiqueta">Grado Asignado</label>
+      <select class="selector" id="campo-grado-usuario" style="width:100%;">
+        <option value="" disabled ${!gradoActualForm ? 'selected' : ''}>-- Seleccione el grado del profesor --</option>
+        ${opcionesGradosUsuario}
+      </select>
+    </div>`;
+
   return `
     <div class="vista">
       <div class="vista-encabezado">
@@ -963,15 +979,19 @@ function plantillaUsuarios() {
             <div><label class="etiqueta">Usuario</label><input class="campo" id="campo-usuario-usuario" value="${usuarioEnEdicion ? esc(usuarioEnEdicion.usuario) : ''}"></div>
             <div><label class="etiqueta">Contraseña ${usuarioEnEdicion ? '(dejar en blanco para mantener)' : ''}</label><input class="campo" type="password" id="campo-contrasena-usuario"></div>
           </div>
-          <label class="etiqueta">Rol / Categoría</label>
+          <label class="etiqueta" style="margin-top:12px;">Rol / Categoría</label>
           <div class="selector-roles">${opcionesRol}</div>
-          <div id="error-form-usuario"></div>
-          <div class="fila-botones"><button type="button" class="boton boton-fantasma" onclick="cerrarFormUsuario()">Cancelar</button><button type="submit" class="boton boton-primario">${usuarioEnEdicion ? 'Actualizar' : 'Crear'}</button></div>
+          ${bloqueGradoProfesor}
+          <div id="error-form-usuario" style="margin-top:8px;"></div>
+          <div class="fila-botones" style="margin-top:16px;"><button type="button" class="boton boton-fantasma" onclick="cerrarFormUsuario()">Cancelar</button><button type="submit" class="boton boton-primario">${usuarioEnEdicion ? 'Actualizar' : 'Crear'}</button></div>
         </form>` : ''}
       <div class="lista-unidades">${estado.usuarios.map(u => `
         <div class="tarjeta-unidad" style="flex-direction:column;">
           <div style="display:flex;width:100%;">
-            <div class="tarjeta-unidad-cuerpo"><p class="tarjeta-unidad-nombre">${esc(u.nombre)}</p><p class="tarjeta-unidad-rango">usuario: ${esc(u.usuario)} · ${ROLES[u.rol]?.label || u.rol}</p></div>
+            <div class="tarjeta-unidad-cuerpo">
+              <p class="tarjeta-unidad-nombre">${esc(u.nombre)}</p>
+              <p class="tarjeta-unidad-rango">usuario: ${esc(u.usuario)} · ${ROLES[u.rol]?.label || u.rol}${u.rol === 'profesor' && u.grado ? ` · Grado: <b>${esc(u.grado)}</b>` : ''}</p>
+            </div>
             <div class="tarjeta-unidad-acciones">
               <button class="boton-icono" onclick="abrirFormUsuario('${u.id}')" title="Editar"><i data-lucide="pencil"></i></button>
               <button class="boton-icono" onclick="mostrarFormRestablecer('${u.id}')" title="Cambiar clave"><i data-lucide="key-round"></i></button>
