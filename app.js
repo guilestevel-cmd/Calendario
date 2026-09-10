@@ -652,7 +652,6 @@ function plantillaCalendario() {
     opcionesGrados += `<option value="" disabled ${!estado.gradoActivoCalendario ? 'selected' : ''}>-- Seleccione un grado --</option>`;
   }
 
-  // En la vista calendario se muestran TODOS los grados configurados sin restricción por usuario
   opcionesGrados += estado.grados.map(g => `<option value="${esc(g.nombre)}"${estado.gradoActivoCalendario === g.nombre ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('');
 
   const inicio = parseFecha(unidad.fechaInicio);
@@ -954,7 +953,7 @@ function plantillaUsuarios() {
       <i data-lucide="${r.icono}"></i><span>${r.label}</span>
     </button>`).join('');
 
-  const gradoActualForm = usuarioEnEdicion ? (usuarioEnEdicion.grado || '') : '';
+  const gradoActualForm = usuarioEnEdicion ? (usuarioEnEdicion.grado || usuarioEnEdicion.gradoAsignado || '') : '';
   const opcionesGradosUsuario = estado.grados.map(g => `<option value="${esc(g.nombre)}"${gradoActualForm === g.nombre ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('');
 
   const bloqueGradoProfesor = `
@@ -990,7 +989,7 @@ function plantillaUsuarios() {
           <div style="display:flex;width:100%;">
             <div class="tarjeta-unidad-cuerpo">
               <p class="tarjeta-unidad-nombre">${esc(u.nombre)}</p>
-              <p class="tarjeta-unidad-rango">usuario: ${esc(u.usuario)} · ${ROLES[u.rol]?.label || u.rol}${u.rol === 'profesor' && u.grado ? ` · Grado: <b>${esc(u.grado)}</b>` : ''}</p>
+              <p class="tarjeta-unidad-rango">usuario: ${esc(u.usuario)} · ${ROLES[u.rol]?.label || u.rol}${u.rol === 'profesor' && (u.grado || u.gradoAsignado) ? ` · Grado: <b>${esc(u.grado || u.gradoAsignado)}</b>` : ''}</p>
             </div>
             <div class="tarjeta-unidad-acciones">
               <button class="boton-icono" onclick="abrirFormUsuario('${u.id}')" title="Editar"><i data-lucide="pencil"></i></button>
@@ -1026,14 +1025,18 @@ function plantillaReporte() {
     `<option value="todas"${estado.unidadReporteId === 'todas' ? ' selected' : ''}>Todas las unidades (General)</option>` +
     unidadesOrdenadas().map(u => `<option value="${u.id}"${u.id === estado.unidadReporteId ? ' selected' : ''}>${esc(u.nombre)}</option>`).join('');
 
-  // Restricción aplicada EXCLUSIVAMENTE en el selector de la vista de reporte
+  // Restricción aplicada EXCLUSIVAMENTE en el selector de la vista de reporte para el rol profesor
   const esProfesor = estado.sesion.rol === 'profesor';
   let gradosFiltradosReporte = estado.grados;
-  if (esProfesor && estado.sesion.grado) {
+  
+  if (esProfesor) {
+    const usuarioActualObj = estado.usuarios.find(u => u.usuario === estado.sesion.usuario);
+    const gradoAsignadoUsuario = usuarioActualObj ? (usuarioActualObj.gradoAsignado || usuarioActualObj.grado || '') : (estado.sesion.grado || '');
+
     gradosFiltradosReporte = estado.grados.filter(g => {
       const nombreGrado = g.nombre.trim().toLowerCase();
-      const gradoAsignado = estado.sesion.grado.trim().toLowerCase();
-      return nombreGrado === gradoAsignado || nombreGrado === 'profesores';
+      const asignado = gradoAsignadoUsuario.trim().toLowerCase();
+      return nombreGrado === asignado || nombreGrado === 'profesores';
     });
   }
 
