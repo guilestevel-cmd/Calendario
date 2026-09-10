@@ -649,7 +649,6 @@ function plantillaCalendario() {
   if (esGlobal) {
     opcionesGrados += `<option value="TODOS"${estado.gradoActivoCalendario === 'TODOS' ? ' selected' : ''}>-- Todos los grados (General) --</option>`;
   } else {
-    // Si es un profesor con grado asignado por defecto, aseguramos que aparezca seleccionado
     opcionesGrados += `<option value="" disabled ${!estado.gradoActivoCalendario ? 'selected' : ''}>-- Seleccione un grado --</option>`;
   }
 
@@ -1026,9 +1025,22 @@ function plantillaReporte() {
     `<option value="todas"${estado.unidadReporteId === 'todas' ? ' selected' : ''}>Todas las unidades (General)</option>` +
     unidadesOrdenadas().map(u => `<option value="${u.id}"${u.id === estado.unidadReporteId ? ' selected' : ''}>${esc(u.nombre)}</option>`).join('');
 
-  const opcionesGrados = `<option value="" disabled ${!estado.gradoFiltroReporte ? 'selected' : ''}>Seleccione destino...</option>` +
-    `<option value="TODOS"${estado.gradoFiltroReporte === 'TODOS' ? ' selected' : ''}>Todos los grados (General)</option>` +
-    estado.grados.map(g => `<option value="${esc(g.nombre)}"${estado.gradoFiltroReporte === g.nombre ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('');
+  // Regla nueva: si el usuario es profesor, solo se muestran su grado asignado y "Profesores" en el reporte
+  const esProfesor = estado.sesion.rol === 'profesor';
+  let gradosFiltradosReporte = estado.grados;
+  if (esProfesor && estado.sesion.grado) {
+    gradosFiltradosReporte = estado.grados.filter(g => {
+      const nombreGrado = g.nombre.trim().toLowerCase();
+      const gradoAsignado = estado.sesion.grado.trim().toLowerCase();
+      return nombreGrado === gradoAsignado || nombreGrado === 'profesores';
+    });
+  }
+
+  let opcionesGrados = `<option value="" disabled ${!estado.gradoFiltroReporte ? 'selected' : ''}>Seleccione destino...</option>`;
+  if (!esProfesor) {
+    opcionesGrados += `<option value="TODOS"${estado.gradoFiltroReporte === 'TODOS' ? ' selected' : ''}>Todos los grados (General)</option>`;
+  }
+  opcionesGrados += gradosFiltradosReporte.map(g => `<option value="${esc(g.nombre)}"${estado.gradoFiltroReporte === g.nombre ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('');
 
   let items = [];
   let unidadSeleccionadaTexto = '';
