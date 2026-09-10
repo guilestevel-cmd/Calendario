@@ -652,6 +652,7 @@ function plantillaCalendario() {
     opcionesGrados += `<option value="" disabled ${!estado.gradoActivoCalendario ? 'selected' : ''}>-- Seleccione un grado --</option>`;
   }
 
+  // En la vista calendario se muestran TODOS los grados configurados sin restricción por usuario
   opcionesGrados += estado.grados.map(g => `<option value="${esc(g.nombre)}"${estado.gradoActivoCalendario === g.nombre ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('');
 
   const inicio = parseFecha(unidad.fechaInicio);
@@ -1025,7 +1026,7 @@ function plantillaReporte() {
     `<option value="todas"${estado.unidadReporteId === 'todas' ? ' selected' : ''}>Todas las unidades (General)</option>` +
     unidadesOrdenadas().map(u => `<option value="${u.id}"${u.id === estado.unidadReporteId ? ' selected' : ''}>${esc(u.nombre)}</option>`).join('');
 
-  // Regla nueva: si el usuario es profesor, solo se muestran su grado asignado y "Profesores" en el reporte
+  // Restricción aplicada EXCLUSIVAMENTE en el selector de la vista de reporte
   const esProfesor = estado.sesion.rol === 'profesor';
   let gradosFiltradosReporte = estado.grados;
   if (esProfesor && estado.sesion.grado) {
