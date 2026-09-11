@@ -163,14 +163,19 @@ async function iniciar() {
     
     estado.configuracion = Object.assign({ nombreColegio: 'Instituto de Educación Media', calendarioCerrado: 'false' }, configuracion || {});
     
-    if (estado.sesion && esRolGlobal(estado.sesion.rol)) {
-      estado.gradoActivoCalendario = 'Profesores';
-    } else if (estado.sesion && estado.sesion.rol === 'profesor') {
+    if (estado.sesion) {
       const uObj = estado.usuarios.find(u => String(u.usuario).trim().toLowerCase() === String(estado.sesion.usuario).trim().toLowerCase());
       const gradoEncontrado = uObj ? (uObj.gradoAsignado || uObj.grado || '') : (estado.sesion.grado || '');
-      estado.gradoActivoCalendario = gradoEncontrado;
-    } else {
-      estado.gradoActivoCalendario = '';
+      estado.sesion.grado = gradoEncontrado;
+      try { localStorage.setItem('planea-sesion', JSON.stringify(estado.sesion)); } catch (e) {}
+
+      if (esRolGlobal(estado.sesion.rol)) {
+        estado.gradoActivoCalendario = 'Profesores';
+      } else if (estado.sesion.rol === 'profesor') {
+        estado.gradoActivoCalendario = gradoEncontrado;
+      } else {
+        estado.gradoActivoCalendario = '';
+      }
     }
 
     if (estado.unidades.length) {
@@ -223,15 +228,15 @@ async function manejarEnvioLogin(ev) {
     const resultado = await api('sesion', { metodo: 'POST', accion: 'iniciar', datos: { usuario, contrasena } });
     if (!resultado.ok) { errorEl.innerHTML = mensajeError(resultado.error); return; }
     
-    // Al iniciar sesión, aseguramos buscar su registro completo en el listado para sincronizar propiedades si es necesario
-    const usuarioEncontrado = (estado.usuarios || []).find(u => String(u.usuario).trim().toLowerCase() === String(resultado.usuario).trim().toLowerCase());
-    const gradoUsuario = resultado.grado || resultado.gradoAsignado || (usuarioEncontrado ? (usuarioEncontrado.gradoAsignado || usuarioEncontrado.grado || '') : '');
+    // Forzamos la obtención inmediata y explícita del grado desde la lista completa de usuarios cargada
+    const usuarioEncontrado = (estado.usuarios || []).find(u => String(u.usuario).trim().toLowerCase() === String(resultado.usuario || usuario).trim().toLowerCase());
+    const gradoUsuario = (usuarioEncontrado ? (usuarioEncontrado.gradoAsignado || usuarioEncontrado.grado || '') : '') || resultado.grado || resultado.gradoAsignado || '';
 
     estado.sesion = { usuario: resultado.usuario, nombre: resultado.nombre, rol: resultado.rol, grado: gradoUsuario };
     
     if (esRolGlobal(estado.sesion.rol)) {
       estado.gradoActivoCalendario = 'Profesores';
-    } else if (estado.sesion.rol === 'profesor' && gradoUsuario) {
+    } else if (estado.sesion.rol === 'profesor') {
       estado.gradoActivoCalendario = gradoUsuario;
     } else {
       estado.gradoActivoCalendario = '';
@@ -1037,7 +1042,7 @@ function plantillaReporte() {
   
   if (esProfesor) {
     const usuarioActualObj = estado.usuarios.find(u => String(u.usuario).trim().toLowerCase() === String(estado.sesion.usuario).trim().toLowerCase());
-    const gradoAsignadoUsuario = usuarioActualObj ? (usuarioActualObj.gradoAsignado || usuarioActualObj.grado || '') : (estado.sesion.grado || '');
+    const gradoAsignadoUsuario = (usuarioActualObj ? (usuarioActualObj.gradoAsignado || usuarioActualObj.grado || '') : '') || estado.sesion.grado || '';
 
     gradosFiltradosReporte = estado.grados.filter(g => {
       const nombreGrado = g.nombre.trim().toLowerCase();
