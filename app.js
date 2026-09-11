@@ -1026,19 +1026,30 @@ function plantillaReporte() {
     `<option value="todas"${estado.unidadReporteId === 'todas' ? ' selected' : ''}>Todas las unidades (General)</option>` +
     unidadesOrdenadas().map(u => `<option value="${u.id}"${u.id === estado.unidadReporteId ? ' selected' : ''}>${esc(u.nombre)}</option>`).join('');
 
-  // Extracción exclusiva de grados desde la pestaña de usuarios (profesores)
+  // Recopilar exclusivamente "Profesores" y el grado asignado en la pestaña Usuarios
   const gradosSet = new Set();
+  gradosSet.add('Profesores');
+
   if (Array.isArray(estado.usuarios)) {
     estado.usuarios.forEach(u => {
       const rolStr = (u.rol || '').toLowerCase();
       if (rolStr === 'profesor' || rolStr === 'docente') {
-        const gradoEncontrado = u.gradoAsignado || u.grado || u.asignacion;
-        if (gradoEncontrado) {
-          gradosSet.add(gradoEncontrado);
+        const gradoAsig = u.gradoAsignado || u.grado || u.asignacion || u.curso;
+        if (gradoAsig) {
+          gradosSet.add(gradoAsig);
         }
       }
     });
   }
+
+  // Verificar también si la sesión activa tiene un grado asignado
+  if (estado.sesion && (estado.sesion.rol === 'profesor' || estado.sesion.rol === 'docente')) {
+    const gradoSesion = estado.sesion.gradoAsignado || estado.sesion.grado || estado.sesion.curso;
+    if (gradoSesion) {
+      gradosSet.add(gradoSesion);
+    }
+  }
+
   const listaGradosUnicos = Array.from(gradosSet);
 
   const opcionesGrados = `<option value="" disabled ${!estado.gradoFiltroReporte ? 'selected' : ''}>Seleccione destino...</option>` +
