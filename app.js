@@ -165,9 +165,8 @@ async function iniciar() {
     
     if (estado.sesion && esRolGlobal(estado.sesion.rol)) {
       estado.gradoActivoCalendario = 'Profesores';
-    } else if (estado.sesion && estado.sesion.rol === 'profesor' && estado.sesion.grado) {
-      estado.gradoActivoCalendario = estado.sesion.grado;
     } else {
+      // El profesor siempre debe elegir manualmente en qué grado va a trabajar.
       estado.gradoActivoCalendario = '';
     }
 
@@ -224,9 +223,8 @@ async function manejarEnvioLogin(ev) {
     
     if (esRolGlobal(estado.sesion.rol)) {
       estado.gradoActivoCalendario = 'Profesores';
-    } else if (estado.sesion.rol === 'profesor' && estado.sesion.grado) {
-      estado.gradoActivoCalendario = estado.sesion.grado;
     } else {
+      // El profesor siempre debe elegir manualmente en qué grado va a trabajar.
       estado.gradoActivoCalendario = '';
     }
 
