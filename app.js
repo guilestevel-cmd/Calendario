@@ -1026,14 +1026,19 @@ function plantillaReporte() {
     `<option value="todas"${estado.unidadReporteId === 'todas' ? ' selected' : ''}>Todas las unidades (General)</option>` +
     unidadesOrdenadas().map(u => `<option value="${u.id}"${u.id === estado.unidadReporteId ? ' selected' : ''}>${esc(u.nombre)}</option>`).join('');
 
-  // Recopilar únicamente los grados asignados a los profesores desde la pestaña Usuarios (campo gradoAsignado o grado)
+  // Extracción exclusiva de grados desde la pestaña de usuarios (profesores)
   const gradosSet = new Set();
-  estado.usuarios.forEach(u => {
-    if (u.rol === 'profesor') {
-      const gradoAsig = u.gradoAsignado || u.grado;
-      if (gradoAsig) gradosSet.add(gradoAsig);
-    }
-  });
+  if (Array.isArray(estado.usuarios)) {
+    estado.usuarios.forEach(u => {
+      const rolStr = (u.rol || '').toLowerCase();
+      if (rolStr === 'profesor' || rolStr === 'docente') {
+        const gradoEncontrado = u.gradoAsignado || u.grado || u.asignacion;
+        if (gradoEncontrado) {
+          gradosSet.add(gradoEncontrado);
+        }
+      }
+    });
+  }
   const listaGradosUnicos = Array.from(gradosSet);
 
   const opcionesGrados = `<option value="" disabled ${!estado.gradoFiltroReporte ? 'selected' : ''}>Seleccione destino...</option>` +
