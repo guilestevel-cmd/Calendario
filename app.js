@@ -1026,28 +1026,34 @@ function plantillaReporte() {
     `<option value="todas"${estado.unidadReporteId === 'todas' ? ' selected' : ''}>Todas las unidades (General)</option>` +
     unidadesOrdenadas().map(u => `<option value="${u.id}"${u.id === estado.unidadReporteId ? ' selected' : ''}>${esc(u.nombre)}</option>`).join('');
 
-  // Recopilar exclusivamente "Profesores" y el grado asignado en la pestaña Usuarios
+  // Recopilar exclusivamente "Profesores" y el grado asignado al usuario/profesor
   const gradosSet = new Set();
   gradosSet.add('Profesores');
 
+  // 1. Revisar en la lista de usuarios general (si existe)
   if (Array.isArray(estado.usuarios)) {
     estado.usuarios.forEach(u => {
       const rolStr = (u.rol || '').toLowerCase();
       if (rolStr === 'profesor' || rolStr === 'docente') {
-        const gradoAsig = u.gradoAsignado || u.grado || u.asignacion || u.curso;
-        if (gradoAsig) {
-          gradosSet.add(gradoAsig);
-        }
+        const val = u.gradoAsignado || u.grado || u.curso || u.asignacion || u.gradoProfesor || u.cursoAsignado;
+        if (val) gradosSet.add(val);
       }
     });
   }
 
-  // Verificar también si la sesión activa tiene un grado asignado
-  if (estado.sesion && (estado.sesion.rol === 'profesor' || estado.sesion.rol === 'docente')) {
-    const gradoSesion = estado.sesion.gradoAsignado || estado.sesion.grado || estado.sesion.curso;
-    if (gradoSesion) {
-      gradosSet.add(gradoSesion);
+  // 2. Revisar directamente en la sesión activa (usuario logueado actual)
+  if (estado.sesion) {
+    const s = estado.sesion;
+    const valSesion = s.gradoAsignado || s.grado || s.curso || s.asignacion || s.gradoProfesor || s.cursoAsignado;
+    if (valSesion) {
+      gradosSet.add(valSesion);
     }
+    // Si la sesión misma es un profesor y tiene cualquier otra propiedad de texto que parezca un grado o curso
+    Object.keys(s).forEach(key => {
+      if ((key.toLowerCase().includes('grado') || key.toLowerCase().includes('curso') || key.toLowerCase().includes('asignacion')) && typeof s[key] === 'string' && s[key].trim() !== '') {
+        gradosSet.add(s[key]);
+      }
+    });
   }
 
   const listaGradosUnicos = Array.from(gradosSet);
