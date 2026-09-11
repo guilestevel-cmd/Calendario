@@ -1026,34 +1026,33 @@ function plantillaReporte() {
     `<option value="todas"${estado.unidadReporteId === 'todas' ? ' selected' : ''}>Todas las unidades (General)</option>` +
     unidadesOrdenadas().map(u => `<option value="${u.id}"${u.id === estado.unidadReporteId ? ' selected' : ''}>${esc(u.nombre)}</option>`).join('');
 
-  // Recopilar exclusivamente "Profesores" y el grado asignado al usuario/profesor
+  // Recopilar exclusivamente "Profesores" y el/los grado(s) que correspondan según el rol
   const gradosSet = new Set();
   gradosSet.add('Profesores');
 
-  // 1. Revisar en la lista de usuarios general (si existe)
-  if (Array.isArray(estado.usuarios)) {
-    estado.usuarios.forEach(u => {
-      const rolStr = (u.rol || '').toLowerCase();
-      if (rolStr === 'profesor' || rolStr === 'docente') {
-        const val = u.gradoAsignado || u.grado || u.curso || u.asignacion || u.gradoProfesor || u.cursoAsignado;
-        if (val) gradosSet.add(val);
-      }
-    });
-  }
+  const rolSesion = estado.sesion ? (estado.sesion.rol || '').toLowerCase() : '';
 
-  // 2. Revisar directamente en la sesión activa (usuario logueado actual)
-  if (estado.sesion) {
-    const s = estado.sesion;
-    const valSesion = s.gradoAsignado || s.grado || s.curso || s.asignacion || s.gradoProfesor || s.cursoAsignado;
-    if (valSesion) {
-      gradosSet.add(valSesion);
+  if (rolSesion === 'profesor') {
+    // Un profesor SOLO puede imprimir el reporte de "Profesores" y el de su propio grado asignado.
+    const valSesion = estado.sesion.grado || estado.sesion.gradoAsignado || '';
+    if (valSesion) gradosSet.add(valSesion);
+  } else {
+    // Resto de roles (admin, dirección, comisión, etc.): conservan el listado completo de grados,
+    // igual que antes.
+    if (Array.isArray(estado.usuarios)) {
+      estado.usuarios.forEach(u => {
+        const rolStr = (u.rol || '').toLowerCase();
+        if (rolStr === 'profesor' || rolStr === 'docente') {
+          const val = u.grado || u.gradoAsignado || u.curso || u.asignacion || u.gradoProfesor || u.cursoAsignado;
+          if (val) gradosSet.add(val);
+        }
+      });
     }
-    // Si la sesión misma es un profesor y tiene cualquier otra propiedad de texto que parezca un grado o curso
-    Object.keys(s).forEach(key => {
-      if ((key.toLowerCase().includes('grado') || key.toLowerCase().includes('curso') || key.toLowerCase().includes('asignacion')) && typeof s[key] === 'string' && s[key].trim() !== '') {
-        gradosSet.add(s[key]);
-      }
-    });
+    if (estado.sesion) {
+      const s = estado.sesion;
+      const valSesion = s.grado || s.gradoAsignado || s.curso || s.asignacion || s.gradoProfesor || s.cursoAsignado;
+      if (valSesion) gradosSet.add(valSesion);
+    }
   }
 
   const listaGradosUnicos = Array.from(gradosSet);
