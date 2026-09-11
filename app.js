@@ -1026,9 +1026,18 @@ function plantillaReporte() {
     `<option value="todas"${estado.unidadReporteId === 'todas' ? ' selected' : ''}>Todas las unidades (General)</option>` +
     unidadesOrdenadas().map(u => `<option value="${u.id}"${u.id === estado.unidadReporteId ? ' selected' : ''}>${esc(u.nombre)}</option>`).join('');
 
+  // Recopilar grados únicos de la lista de grados y también de los grados asignados a los usuarios profesores
+  const gradosSet = new Set(estado.grados.map(g => g.nombre));
+  estado.usuarios.forEach(u => {
+    if (u.rol === 'profesor' && u.grado) {
+      gradosSet.add(u.grado);
+    }
+  });
+  const listaGradosUnicos = Array.from(gradosSet);
+
   const opcionesGrados = `<option value="" disabled ${!estado.gradoFiltroReporte ? 'selected' : ''}>Seleccione destino...</option>` +
     `<option value="TODOS"${estado.gradoFiltroReporte === 'TODOS' ? ' selected' : ''}>Todos los grados (General)</option>` +
-    estado.grados.map(g => `<option value="${esc(g.nombre)}"${estado.gradoFiltroReporte === g.nombre ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('');
+    listaGradosUnicos.map(g => `<option value="${esc(g)}"${estado.gradoFiltroReporte === g ? ' selected' : ''}>${esc(g)}</option>`).join('');
 
   let items = [];
   let unidadSeleccionadaTexto = '';
