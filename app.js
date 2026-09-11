@@ -165,8 +165,10 @@ async function iniciar() {
     
     if (estado.sesion && esRolGlobal(estado.sesion.rol)) {
       estado.gradoActivoCalendario = 'Profesores';
-    } else if (estado.sesion && estado.sesion.rol === 'profesor' && estado.sesion.grado) {
-      estado.gradoActivoCalendario = estado.sesion.grado;
+    } else if (estado.sesion && estado.sesion.rol === 'profesor') {
+      const uObj = estado.usuarios.find(u => String(u.usuario).trim().toLowerCase() === String(estado.sesion.usuario).trim().toLowerCase());
+      const gradoEncontrado = uObj ? (uObj.gradoAsignado || uObj.grado || '') : (estado.sesion.grado || '');
+      estado.gradoActivoCalendario = gradoEncontrado;
     } else {
       estado.gradoActivoCalendario = '';
     }
@@ -220,12 +222,17 @@ async function manejarEnvioLogin(ev) {
   try {
     const resultado = await api('sesion', { metodo: 'POST', accion: 'iniciar', datos: { usuario, contrasena } });
     if (!resultado.ok) { errorEl.innerHTML = mensajeError(resultado.error); return; }
-    estado.sesion = { usuario: resultado.usuario, nombre: resultado.nombre, rol: resultado.rol, grado: resultado.grado || '' };
+    
+    // Al iniciar sesión, aseguramos buscar su registro completo en el listado para sincronizar propiedades si es necesario
+    const usuarioEncontrado = (estado.usuarios || []).find(u => String(u.usuario).trim().toLowerCase() === String(resultado.usuario).trim().toLowerCase());
+    const gradoUsuario = resultado.grado || resultado.gradoAsignado || (usuarioEncontrado ? (usuarioEncontrado.gradoAsignado || usuarioEncontrado.grado || '') : '');
+
+    estado.sesion = { usuario: resultado.usuario, nombre: resultado.nombre, rol: resultado.rol, grado: gradoUsuario };
     
     if (esRolGlobal(estado.sesion.rol)) {
       estado.gradoActivoCalendario = 'Profesores';
-    } else if (estado.sesion.rol === 'profesor' && estado.sesion.grado) {
-      estado.gradoActivoCalendario = estado.sesion.grado;
+    } else if (estado.sesion.rol === 'profesor' && gradoUsuario) {
+      estado.gradoActivoCalendario = gradoUsuario;
     } else {
       estado.gradoActivoCalendario = '';
     }
@@ -1025,12 +1032,11 @@ function plantillaReporte() {
     `<option value="todas"${estado.unidadReporteId === 'todas' ? ' selected' : ''}>Todas las unidades (General)</option>` +
     unidadesOrdenadas().map(u => `<option value="${u.id}"${u.id === estado.unidadReporteId ? ' selected' : ''}>${esc(u.nombre)}</option>`).join('');
 
-  // Restricción aplicada EXCLUSIVAMENTE en el selector de la vista de reporte para el rol profesor
   const esProfesor = estado.sesion.rol === 'profesor';
   let gradosFiltradosReporte = estado.grados;
   
   if (esProfesor) {
-    const usuarioActualObj = estado.usuarios.find(u => u.usuario === estado.sesion.usuario);
+    const usuarioActualObj = estado.usuarios.find(u => String(u.usuario).trim().toLowerCase() === String(estado.sesion.usuario).trim().toLowerCase());
     const gradoAsignadoUsuario = usuarioActualObj ? (usuarioActualObj.gradoAsignado || usuarioActualObj.grado || '') : (estado.sesion.grado || '');
 
     gradosFiltradosReporte = estado.grados.filter(g => {
