@@ -88,7 +88,14 @@ function esRolGlobal(rol) {
 }
 
 function getEstadoDiaGrado(fechaStr, actividades, gradoSeleccionado) {
-  const delDia = actividades.filter(a => a.fecha === fechaStr);
+  // Aplicamos filtrado local adaptado para el rol del usuario actual
+  const delDia = actividades.filter(a => {
+    if (a.fecha !== fechaStr) return false;
+    if (estado.sesion && estado.sesion.rol === 'profesor') {
+      return a.rol === 'profesores' || a.curso === estado.sesion.grado;
+    }
+    return true;
+  });
   
   const visibles = delDia.filter(a => {
     if (gradoSeleccionado === 'TODOS') return true;
@@ -228,7 +235,6 @@ async function manejarEnvioLogin(ev) {
     const resultado = await api('sesion', { metodo: 'POST', accion: 'iniciar', datos: { usuario, contrasena } });
     if (!resultado.ok) { errorEl.innerHTML = mensajeError(resultado.error); return; }
     
-    // Forzamos la obtención inmediata y explícita del grado desde la lista completa de usuarios cargada
     const usuarioEncontrado = (estado.usuarios || []).find(u => String(u.usuario).trim().toLowerCase() === String(resultado.usuario || usuario).trim().toLowerCase());
     const gradoUsuario = (usuarioEncontrado ? (usuarioEncontrado.gradoAsignado || usuarioEncontrado.grado || '') : '') || resultado.grado || resultado.gradoAsignado || '';
 
