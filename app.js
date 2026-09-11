@@ -717,7 +717,7 @@ function plantillaCalendario() {
           </div>
           <div>
             <label class="etiqueta-inline">Trabajando en Grado</label>
-            <select class="selector" onchange="cambiarGradoActivoCalendario(this.value)" ${!esGlobal && estado.sesion.grado ? 'disabled title="Grado asignado por administración"' : ''}>${opcionesGrados}</select>
+            <select class="selector" onchange="cambiarGradoActivoCalendario(this.value)">${opcionesGrados}</select>
           </div>
         </div>
         <div style="display:flex;gap:12px;align-items:center;">
