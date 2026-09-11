@@ -1024,36 +1024,21 @@ function plantillaReporte() {
     `<option value="todas"${estado.unidadReporteId === 'todas' ? ' selected' : ''}>Todas las unidades (General)</option>` +
     unidadesOrdenadas().map(u => `<option value="${u.id}"${u.id === estado.unidadReporteId ? ' selected' : ''}>${esc(u.nombre)}</option>`).join('');
 
-  // Recopilar exclusivamente "Profesores" y el/los grado(s) que correspondan según el rol
-  const gradosSet = new Set();
-  gradosSet.add('Profesores');
-
+  // "Destino" del reporte:
+  //  - Roles globales (admin/comisión/dirección): catálogo COMPLETO de grados oficiales (como siempre fue).
+  //  - Profesor: únicamente "Profesores" y su propio grado asignado.
   const rolSesion = estado.sesion ? (estado.sesion.rol || '').toLowerCase() : '';
 
+  let listaGradosUnicos;
   if (rolSesion === 'profesor') {
-    // Un profesor SOLO puede imprimir el reporte de "Profesores" y el de su propio grado asignado.
+    const gradosSet = new Set();
+    gradosSet.add('Profesores');
     const valSesion = estado.sesion.grado || estado.sesion.gradoAsignado || '';
     if (valSesion) gradosSet.add(valSesion);
+    listaGradosUnicos = Array.from(gradosSet);
   } else {
-    // Resto de roles (admin, dirección, comisión, etc.): conservan el listado completo de grados,
-    // igual que antes.
-    if (Array.isArray(estado.usuarios)) {
-      estado.usuarios.forEach(u => {
-        const rolStr = (u.rol || '').toLowerCase();
-        if (rolStr === 'profesor' || rolStr === 'docente') {
-          const val = u.grado || u.gradoAsignado || u.curso || u.asignacion || u.gradoProfesor || u.cursoAsignado;
-          if (val) gradosSet.add(val);
-        }
-      });
-    }
-    if (estado.sesion) {
-      const s = estado.sesion;
-      const valSesion = s.grado || s.gradoAsignado || s.curso || s.asignacion || s.gradoProfesor || s.cursoAsignado;
-      if (valSesion) gradosSet.add(valSesion);
-    }
+    listaGradosUnicos = estado.grados.map(g => g.nombre);
   }
-
-  const listaGradosUnicos = Array.from(gradosSet);
 
   const opcionesGrados = `<option value="" disabled ${!estado.gradoFiltroReporte ? 'selected' : ''}>Seleccione destino...</option>` +
     `<option value="TODOS"${estado.gradoFiltroReporte === 'TODOS' ? ' selected' : ''}>Todos los grados (General)</option>` +
