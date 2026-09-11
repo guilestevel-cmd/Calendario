@@ -88,14 +88,7 @@ function esRolGlobal(rol) {
 }
 
 function getEstadoDiaGrado(fechaStr, actividades, gradoSeleccionado) {
-  // Aplicamos filtrado local adaptado para el rol del usuario actual
-  const delDia = actividades.filter(a => {
-    if (a.fecha !== fechaStr) return false;
-    if (estado.sesion && estado.sesion.rol === 'profesor') {
-      return a.rol === 'profesores' || a.curso === estado.sesion.grado;
-    }
-    return true;
-  });
+  const delDia = actividades.filter(a => a.fecha === fechaStr);
   
   const visibles = delDia.filter(a => {
     if (gradoSeleccionado === 'TODOS') return true;
@@ -170,19 +163,12 @@ async function iniciar() {
     
     estado.configuracion = Object.assign({ nombreColegio: 'Instituto de Educación Media', calendarioCerrado: 'false' }, configuracion || {});
     
-    if (estado.sesion) {
-      const uObj = estado.usuarios.find(u => String(u.usuario).trim().toLowerCase() === String(estado.sesion.usuario).trim().toLowerCase());
-      const gradoEncontrado = uObj ? (uObj.gradoAsignado || uObj.grado || '') : (estado.sesion.grado || '');
-      estado.sesion.grado = gradoEncontrado;
-      try { localStorage.setItem('planea-sesion', JSON.stringify(estado.sesion)); } catch (e) {}
-
-      if (esRolGlobal(estado.sesion.rol)) {
-        estado.gradoActivoCalendario = 'Profesores';
-      } else if (estado.sesion.rol === 'profesor') {
-        estado.gradoActivoCalendario = gradoEncontrado;
-      } else {
-        estado.gradoActivoCalendario = '';
-      }
+    if (estado.sesion && esRolGlobal(estado.sesion.rol)) {
+      estado.gradoActivoCalendario = 'Profesores';
+    } else if (estado.sesion && estado.sesion.rol === 'profesor' && estado.sesion.grado) {
+      estado.gradoActivoCalendario = estado.sesion.grado;
+    } else {
+      estado.gradoActivoCalendario = '';
     }
 
     if (estado.unidades.length) {
@@ -234,16 +220,12 @@ async function manejarEnvioLogin(ev) {
   try {
     const resultado = await api('sesion', { metodo: 'POST', accion: 'iniciar', datos: { usuario, contrasena } });
     if (!resultado.ok) { errorEl.innerHTML = mensajeError(resultado.error); return; }
-    
-    const usuarioEncontrado = (estado.usuarios || []).find(u => String(u.usuario).trim().toLowerCase() === String(resultado.usuario || usuario).trim().toLowerCase());
-    const gradoUsuario = (usuarioEncontrado ? (usuarioEncontrado.gradoAsignado || usuarioEncontrado.grado || '') : '') || resultado.grado || resultado.gradoAsignado || '';
-
-    estado.sesion = { usuario: resultado.usuario, nombre: resultado.nombre, rol: resultado.rol, grado: gradoUsuario };
+    estado.sesion = { usuario: resultado.usuario, nombre: resultado.nombre, rol: resultado.rol, grado: resultado.grado || '' };
     
     if (esRolGlobal(estado.sesion.rol)) {
       estado.gradoActivoCalendario = 'Profesores';
-    } else if (estado.sesion.rol === 'profesor') {
-      estado.gradoActivoCalendario = gradoUsuario;
+    } else if (estado.sesion.rol === 'profesor' && estado.sesion.grado) {
+      estado.gradoActivoCalendario = estado.sesion.grado;
     } else {
       estado.gradoActivoCalendario = '';
     }
@@ -667,6 +649,7 @@ function plantillaCalendario() {
   if (esGlobal) {
     opcionesGrados += `<option value="TODOS"${estado.gradoActivoCalendario === 'TODOS' ? ' selected' : ''}>-- Todos los grados (General) --</option>`;
   } else {
+    // Si es un profesor con grado asignado por defecto, aseguramos que aparezca seleccionado
     opcionesGrados += `<option value="" disabled ${!estado.gradoActivoCalendario ? 'selected' : ''}>-- Seleccione un grado --</option>`;
   }
 
@@ -971,7 +954,7 @@ function plantillaUsuarios() {
       <i data-lucide="${r.icono}"></i><span>${r.label}</span>
     </button>`).join('');
 
-  const gradoActualForm = usuarioEnEdicion ? (usuarioEnEdicion.grado || usuarioEnEdicion.gradoAsignado || '') : '';
+  const gradoActualForm = usuarioEnEdicion ? (usuarioEnEdicion.grado || '') : '';
   const opcionesGradosUsuario = estado.grados.map(g => `<option value="${esc(g.nombre)}"${gradoActualForm === g.nombre ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('');
 
   const bloqueGradoProfesor = `
@@ -1007,7 +990,7 @@ function plantillaUsuarios() {
           <div style="display:flex;width:100%;">
             <div class="tarjeta-unidad-cuerpo">
               <p class="tarjeta-unidad-nombre">${esc(u.nombre)}</p>
-              <p class="tarjeta-unidad-rango">usuario: ${esc(u.usuario)} · ${ROLES[u.rol]?.label || u.rol}${u.rol === 'profesor' && (u.grado || u.gradoAsignado) ? ` · Grado: <b>${esc(u.grado || u.gradoAsignado)}</b>` : ''}</p>
+              <p class="tarjeta-unidad-rango">usuario: ${esc(u.usuario)} · ${ROLES[u.rol]?.label || u.rol}${u.rol === 'profesor' && u.grado ? ` · Grado: <b>${esc(u.grado)}</b>` : ''}</p>
             </div>
             <div class="tarjeta-unidad-acciones">
               <button class="boton-icono" onclick="abrirFormUsuario('${u.id}')" title="Editar"><i data-lucide="pencil"></i></button>
@@ -1043,25 +1026,9 @@ function plantillaReporte() {
     `<option value="todas"${estado.unidadReporteId === 'todas' ? ' selected' : ''}>Todas las unidades (General)</option>` +
     unidadesOrdenadas().map(u => `<option value="${u.id}"${u.id === estado.unidadReporteId ? ' selected' : ''}>${esc(u.nombre)}</option>`).join('');
 
-  const esProfesor = estado.sesion.rol === 'profesor';
-  let gradosFiltradosReporte = estado.grados;
-  
-  if (esProfesor) {
-    const usuarioActualObj = estado.usuarios.find(u => String(u.usuario).trim().toLowerCase() === String(estado.sesion.usuario).trim().toLowerCase());
-    const gradoAsignadoUsuario = (usuarioActualObj ? (usuarioActualObj.gradoAsignado || usuarioActualObj.grado || '') : '') || estado.sesion.grado || '';
-
-    gradosFiltradosReporte = estado.grados.filter(g => {
-      const nombreGrado = g.nombre.trim().toLowerCase();
-      const asignado = gradoAsignadoUsuario.trim().toLowerCase();
-      return nombreGrado === asignado || nombreGrado === 'profesores';
-    });
-  }
-
-  let opcionesGrados = `<option value="" disabled ${!estado.gradoFiltroReporte ? 'selected' : ''}>Seleccione destino...</option>`;
-  if (!esProfesor) {
-    opcionesGrados += `<option value="TODOS"${estado.gradoFiltroReporte === 'TODOS' ? ' selected' : ''}>Todos los grados (General)</option>`;
-  }
-  opcionesGrados += gradosFiltradosReporte.map(g => `<option value="${esc(g.nombre)}"${estado.gradoFiltroReporte === g.nombre ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('');
+  const opcionesGrados = `<option value="" disabled ${!estado.gradoFiltroReporte ? 'selected' : ''}>Seleccione destino...</option>` +
+    `<option value="TODOS"${estado.gradoFiltroReporte === 'TODOS' ? ' selected' : ''}>Todos los grados (General)</option>` +
+    estado.grados.map(g => `<option value="${esc(g.nombre)}"${estado.gradoFiltroReporte === g.nombre ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('');
 
   let items = [];
   let unidadSeleccionadaTexto = '';
