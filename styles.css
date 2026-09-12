@@ -1005,3 +1005,35 @@ button:active, .boton:active, .barra-item:active, .celda-dia:active, .opcion-tip
 .leyenda-container span:nth-of-type(1), footer span:nth-of-type(1), .leyenda div:nth-child(1) span { background-color: #22c55e !important; }
 .leyenda-container span:nth-of-type(2), footer span:nth-of-type(2), .leyenda div:nth-child(2) span { background-color: #f97316 !important; }
 .leyenda-container span:nth-of-type(3), footer span:nth-of-type(3), .leyenda div:nth-child(3) span { background-color: #ef4444 !important; }
+
+/* FORZAR COLORES EXACTOS EN LOS CÍRCULOS DE LA LEYENDA INFERIOR */
+/* 1. Círculo de "Libre" (Primer elemento de la leyenda) */
+footer span:nth-of-type(1), 
+.leyenda span:nth-of-type(1), 
+.footer-leyenda span:nth-of-type(1),
+div:has(> span) > span:nth-child(1),
+.q-footer span:first-child,
+footer div span:nth-child(1) {
+  background-color: #22c55e !important;
+  border: 1px solid #16a34a !important;
+}
+
+/* 2. Círculo de "Medio cargado" (Segundo elemento de la leyenda) */
+footer span:nth-of-type(2), 
+.leyenda span:nth-of-type(2), 
+.footer-leyenda span:nth-of-type(2),
+div:has(> span) > span:nth-child(3),
+footer div span:nth-child(3) {
+  background-color: #f97316 !important;
+  border: 1px solid #ea580c !important;
+}
+
+/* 3. Círculo de "Lleno" (Tercer elemento de la leyenda) */
+footer span:nth-of-type(3), 
+.leyenda span:nth-of-type(3), 
+.footer-leyenda span:nth-of-type(3),
+div:has(> span) > span:nth-child(5),
+footer div span:nth-child(5) {
+  background-color: #ef4444 !important;
+  border: 1px solid #dc2626 !important;
+}
