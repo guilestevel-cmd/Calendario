@@ -114,7 +114,6 @@ function getEstadoDiaGrado(fechaStr, actividades, gradoSeleccionado) {
 
 function puedeAgregar(tipo, estadoDiaReal) {
   if (tipo === 'evento') {
-    if (estadoDiaReal.tieneEvento) return { ok: false, msg: 'Este día ya cuenta con un evento institucional relevante.' };
     return { ok: true };
   }
   if (estadoDiaReal.ocupadas >= estadoDiaReal.capacidad) {
