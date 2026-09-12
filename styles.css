@@ -430,24 +430,24 @@ body {
 }
 
 /* COLORES DE DISPONIBILIDAD EXACTOS: Verde, Naranja, Rojo */
-.celda-libre {
+/* COLORES DE DISPONIBILIDAD: Libre=Verde, Medio=Naranja, Lleno=Rojo */
+.celda-libre, .libre {
   background-color: #dcfce7 !important; /* Verde */
   border-color: #22c55e !important;
   color: #14532d !important;
 }
 
-.celda-medio {
+.celda-medio, .medio {
   background-color: #ffedd5 !important; /* Naranja */
   border-color: #f97316 !important;
   color: #7c2d12 !important;
 }
 
-.celda-lleno {
+.celda-lleno, .lleno {
   background-color: #fee2e2 !important; /* Rojo */
   border-color: #ef4444 !important;
   color: #7f1d1d !important;
 }
-
 .nav-mes {
   display: flex;
   align-items: center;
