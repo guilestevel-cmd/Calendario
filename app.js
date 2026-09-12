@@ -114,6 +114,7 @@ function getEstadoDiaGrado(fechaStr, actividades, gradoSeleccionado) {
 
 function puedeAgregar(tipo, estadoDiaReal) {
   if (tipo === 'evento') {
+    if (estadoDiaReal.tieneEvento) return { ok: false, msg: 'Este día ya cuenta con un evento institucional relevante.' };
     return { ok: true };
   }
   if (estadoDiaReal.ocupadas >= estadoDiaReal.capacidad) {
@@ -738,9 +739,9 @@ function plantillaCalendario() {
       </div>
 
       <div class="leyenda-calendario" style="display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:20px;margin-top:16px;padding-top:10px;border-top:1px solid #e2e8f0;font-size:11.5px;color:#64748b;">
-        <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;background-color:#ffffff;border:1px solid #cbd5e1;border-radius:50%;"></span><span>Libre</span></div>
-        <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;background-color:#f1f5f9;border:1px solid #94a3b8;border-radius:50%;"></span><span>Medio cargado</span></div>
-        <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;background-color:#fee2e2;border:1px solid #f87171;border-radius:50%;"></span><span>Lleno (Límite alcanzado)</span></div>
+        <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;background-color:#dcfce7;border:1px solid #22c55e;border-radius:50%;"></span><span>Libre</span></div>
+        <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;background-color:#ffedd5;border:1px solid #f97316;border-radius:50%;"></span><span>Medio cargado</span></div>
+        <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;background-color:#fee2e2;border:1px solid #ef4444;border-radius:50%;"></span><span>Lleno (Límite alcanzado)</span></div>
         <div style="display:flex;align-items:center;gap:6px;"><i data-lucide="flag" style="width:12px;height:12px;color:#0f2b27;"></i><span>Evento Institucional</span></div>
       </div>
     </div>`;
