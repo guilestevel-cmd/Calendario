@@ -103,7 +103,7 @@ function getEstadoDiaGrado(fechaStr, actividades, gradoSeleccionado) {
   const tareas = visibles.filter(a => a.tipo === 'tarea');
 
   const tieneEvento = eventos.length > 0;
-  const capacidad = 5;
+  const capacidad = tieneEvento ? 2 : 5;
   const ocupadas = tareas.length;
   let esta = 'libre';
   if (ocupadas >= capacidad) esta = 'lleno';
