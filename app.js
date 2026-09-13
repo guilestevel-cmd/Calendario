@@ -506,11 +506,17 @@ function pedirConfirmarEliminarUsuario(id) {
   render();
 }
 
-async function alternarCierreCalendario() {
-  const u = unidadActiva();
-  if (!u) return;
-  const resultado = await api('unidades', { metodo: 'POST', accion: 'alternar_cierre', datos: { id: u.id } });
+async function alternarCierreUnidad(id) {
+  const resultado = await api('unidades', { metodo: 'POST', accion: 'alternar_cierre', datos: { id } });
   estado.unidades = resultado.lista;
+  render();
+}
+
+async function alternarCierreGeneral() {
+  const cerradoActual = estado.configuracion.calendarioCerrado === 'true';
+  const nuevoValor = cerradoActual ? 'false' : 'true';
+  estado.configuracion.calendarioCerrado = nuevoValor;
+  await api('configuracion', { metodo: 'POST', datos: { calendarioCerrado: nuevoValor } });
   render();
 }
 
@@ -662,7 +668,7 @@ function plantillaCalendario() {
   const hoy = hoyStr();
   const actividadesUnidad = actividadesUnidadActual();
   const opcionesUnidad = unidadesOrdenadas().map(u => `<option value="${u.id}"${u.id === unidad.id ? ' selected' : ''}>${esc(u.nombre)}</option>`).join('');
-  const calendarioCerrado = unidad.cerrada === 'true' || unidad.cerrada === true;
+  const calendarioCerrado = estado.configuracion.calendarioCerrado === 'true' || unidad.cerrada === 'true' || unidad.cerrada === true;
 
   if (!esGlobal && !estado.gradoActivoCalendario) {
     return `
@@ -719,11 +725,6 @@ function plantillaCalendario() {
           </div>
         </div>
         <div style="display:flex;gap:12px;align-items:center;">
-          ${estado.sesion.rol === 'admin' ? `
-            <button class="boton ${calendarioCerrado ? 'boton-secundario' : 'boton-peligro'}" onclick="alternarCierreCalendario()" title="${calendarioCerrado ? 'Habilitar ingresos en esta unidad' : 'Congelar ingresos en esta unidad'}">
-              <i data-lucide="${calendarioCerrado ? 'unlock' : 'lock'}"></i> ${calendarioCerrado ? 'Unidad Cerrada' : 'Cerrar Unidad'}
-            </button>
-          ` : ''}
           <div class="nav-mes">
             <button class="boton-icono" onclick="cambiarMes(-1)"${actual <= limiteAnterior ? ' disabled' : ''}><i data-lucide="chevron-left"></i></button>
             <span class="nombre-mes">${MESES[estado.mesActual.month]} ${estado.mesActual.year}</span>
@@ -731,7 +732,7 @@ function plantillaCalendario() {
           </div>
         </div>
       </div>
-      ${calendarioCerrado ? `<div style="background:#fef3c7;border:1px solid #f59e0b;padding:10px 16px;border-radius:8px;margin-bottom:16px;color:#92400e;font-size:13.5px;display:flex;align-items:center;gap:8px;"><i data-lucide="alert-triangle"></i> <b>Aviso:</b> Esta unidad está cerrada temporalmente por administración. No se permiten nuevos ingresos de actividades en ella.</div>` : ''}
+      ${calendarioCerrado ? `<div style="background:#fef3c7;border:1px solid #f59e0b;padding:10px 16px;border-radius:8px;margin-bottom:16px;color:#92400e;font-size:13.5px;display:flex;align-items:center;gap:8px;"><i data-lucide="alert-triangle"></i> <b>Aviso:</b> ${estado.configuracion.calendarioCerrado === 'true' ? 'El sistema está cerrado temporalmente por administración.' : 'Esta unidad está cerrada temporalmente por administración.'} No se permiten nuevos ingresos de actividades.</div>` : ''}
 
       <div class="tarjeta calendario-tarjeta">
         <div class="fila-dias-semana">${DIAS_CORTOS.map(d => `<div class="etiqueta-dia-semana">${d}</div>`).join('')}</div>
@@ -759,7 +760,7 @@ function plantillaPanelDia() {
   const tipoFijo = TIPO_FIJO_POR_ROL[estado.sesion.rol];
   const items = info.delDiaVisible;
   const unidadPanel = unidadActiva();
-  const calendarioCerrado = !!unidadPanel && (unidadPanel.cerrada === 'true' || unidadPanel.cerrada === true);
+  const calendarioCerrado = estado.configuracion.calendarioCerrado === 'true' || (!!unidadPanel && (unidadPanel.cerrada === 'true' || unidadPanel.cerrada === true));
 
   const itemsHtml = items.map(a => `
     <div class="item-actividad ${a.tipo === 'evento' ? 'item-evento' : 'item-tarea'}">
@@ -880,6 +881,18 @@ function plantillaUnidades() {
       </div>
     </form>` : '';
 
+  const cerradoGeneral = estado.configuracion.calendarioCerrado === 'true';
+  const bloqueCierreGeneral = `
+    <div style="margin-top:24px;border-top:1px solid var(--borde);padding-top:20px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;">
+      <div>
+        <h4 style="font-size:15px;color:var(--tinta);">Cierre General del Sistema</h4>
+        <p style="font-size:13px;color:var(--tinta-suave);">Congela el ingreso de actividades en TODAS las unidades a la vez, sin importar su estado individual. Úsalo para pausas totales del sistema (ej. fin de año escolar).</p>
+      </div>
+      <button class="boton ${cerradoGeneral ? 'boton-secundario' : 'boton-peligro'}" onclick="alternarCierreGeneral()" title="${cerradoGeneral ? 'Habilitar ingresos en todo el sistema' : 'Congelar ingresos en todo el sistema'}">
+        <i data-lucide="${cerradoGeneral ? 'unlock' : 'lock'}"></i> ${cerradoGeneral ? 'Sistema Cerrado' : 'Cerrar Sistema'}
+      </button>
+    </div>`;
+
   const botonLimpiar = `
     <div style="margin-top:24px;border-top:1px solid var(--borde);padding-top:20px;display:flex;justify-content:space-between;align-items:center;">
       <div>
@@ -900,10 +913,15 @@ function plantillaUnidades() {
         <div class="tarjeta-unidad">
           <button class="tarjeta-unidad-cuerpo" onclick="seleccionarUnidadActiva('${u.id}')">
             <p class="tarjeta-unidad-nombre">${esc(u.nombre)}</p>
-            <p class="tarjeta-unidad-rango">${formatFechaCorta(u.fechaInicio)} — ${formatFechaCorta(u.fechaFin)}</p>
+            <p class="tarjeta-unidad-rango">${formatFechaCorta(u.fechaInicio)} — ${formatFechaCorta(u.fechaFin)} ${(u.cerrada === 'true' || u.cerrada === true) ? '<span style="font-size:11px;background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:4px;margin-left:6px;">Cerrada</span>' : ''}</p>
           </button>
-          <div class="tarjeta-unidad-acciones"><button class="boton-icono" onclick="abrirFormUnidad('${u.id}')"><i data-lucide="pencil"></i></button><button class="boton-icono boton-icono-peligro" onclick="pedirConfirmarEliminarUnidad('${u.id}')"><i data-lucide="trash-2"></i></button></div>
+          <div class="tarjeta-unidad-acciones">
+            <button class="boton-icono" onclick="alternarCierreUnidad('${u.id}')" title="${(u.cerrada === 'true' || u.cerrada === true) ? 'Habilitar ingresos en esta unidad' : 'Cerrar unidad (congelar ingresos)'}"><i data-lucide="${(u.cerrada === 'true' || u.cerrada === true) ? 'lock' : 'unlock'}"></i></button>
+            <button class="boton-icono" onclick="abrirFormUnidad('${u.id}')"><i data-lucide="pencil"></i></button>
+            <button class="boton-icono boton-icono-peligro" onclick="pedirConfirmarEliminarUnidad('${u.id}')"><i data-lucide="trash-2"></i></button>
+          </div>
         </div>`).join('')}</div>
+      ${bloqueCierreGeneral}
       ${botonLimpiar}
     </div>`;
 }
