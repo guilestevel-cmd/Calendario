@@ -419,7 +419,7 @@ async function manejarEnvioActividad(ev) {
   }
 }
 
-function puedeEliminarActividad(a) { return estado.sesion.rol === 'admin' || a.rol === estado.sesion.rol; }
+function puedeEliminarActividad(a) { return estado.sesion.rol === 'admin' || a.responsable === estado.sesion.nombre; }
 function pedirConfirmarEliminarActividad(id) {
   const a = estado.actividades.find(x => x.id === id);
   if (!a) return;
