@@ -507,10 +507,10 @@ function pedirConfirmarEliminarUsuario(id) {
 }
 
 async function alternarCierreCalendario() {
-  const cerradoActual = estado.configuracion.calendarioCerrado === 'true';
-  const nuevoValor = cerradoActual ? 'false' : 'true';
-  estado.configuracion.calendarioCerrado = nuevoValor;
-  await api('configuracion', { metodo: 'POST', datos: { calendarioCerrado: nuevoValor } });
+  const u = unidadActiva();
+  if (!u) return;
+  const resultado = await api('unidades', { metodo: 'POST', accion: 'alternar_cierre', datos: { id: u.id } });
+  estado.unidades = resultado.lista;
   render();
 }
 
@@ -662,7 +662,7 @@ function plantillaCalendario() {
   const hoy = hoyStr();
   const actividadesUnidad = actividadesUnidadActual();
   const opcionesUnidad = unidadesOrdenadas().map(u => `<option value="${u.id}"${u.id === unidad.id ? ' selected' : ''}>${esc(u.nombre)}</option>`).join('');
-  const calendarioCerrado = estado.configuracion.calendarioCerrado === 'true';
+  const calendarioCerrado = unidad.cerrada === 'true' || unidad.cerrada === true;
 
   if (!esGlobal && !estado.gradoActivoCalendario) {
     return `
@@ -720,8 +720,8 @@ function plantillaCalendario() {
         </div>
         <div style="display:flex;gap:12px;align-items:center;">
           ${estado.sesion.rol === 'admin' ? `
-            <button class="boton ${calendarioCerrado ? 'boton-secundario' : 'boton-peligro'}" onclick="alternarCierreCalendario()" title="${calendarioCerrado ? 'Habilitar ingresos' : 'Congelar ingresos y cerrar calendario'}">
-              <i data-lucide="${calendarioCerrado ? 'unlock' : 'lock'}"></i> ${calendarioCerrado ? 'Calendario Cerrado' : 'Cerrar Calendario'}
+            <button class="boton ${calendarioCerrado ? 'boton-secundario' : 'boton-peligro'}" onclick="alternarCierreCalendario()" title="${calendarioCerrado ? 'Habilitar ingresos en esta unidad' : 'Congelar ingresos en esta unidad'}">
+              <i data-lucide="${calendarioCerrado ? 'unlock' : 'lock'}"></i> ${calendarioCerrado ? 'Unidad Cerrada' : 'Cerrar Unidad'}
             </button>
           ` : ''}
           <div class="nav-mes">
@@ -731,7 +731,7 @@ function plantillaCalendario() {
           </div>
         </div>
       </div>
-      ${calendarioCerrado ? `<div style="background:#fef3c7;border:1px solid #f59e0b;padding:10px 16px;border-radius:8px;margin-bottom:16px;color:#92400e;font-size:13.5px;display:flex;align-items:center;gap:8px;"><i data-lucide="alert-triangle"></i> <b>Aviso:</b> El calendario está cerrado temporalmente por administración. No se permiten nuevos ingresos de actividades.</div>` : ''}
+      ${calendarioCerrado ? `<div style="background:#fef3c7;border:1px solid #f59e0b;padding:10px 16px;border-radius:8px;margin-bottom:16px;color:#92400e;font-size:13.5px;display:flex;align-items:center;gap:8px;"><i data-lucide="alert-triangle"></i> <b>Aviso:</b> Esta unidad está cerrada temporalmente por administración. No se permiten nuevos ingresos de actividades en ella.</div>` : ''}
 
       <div class="tarjeta calendario-tarjeta">
         <div class="fila-dias-semana">${DIAS_CORTOS.map(d => `<div class="etiqueta-dia-semana">${d}</div>`).join('')}</div>
@@ -758,7 +758,8 @@ function plantillaPanelDia() {
   const info = getEstadoDiaGrado(estado.diaSeleccionado, actividadesActuales, estado.gradoActivoCalendario);
   const tipoFijo = TIPO_FIJO_POR_ROL[estado.sesion.rol];
   const items = info.delDiaVisible;
-  const calendarioCerrado = estado.configuracion.calendarioCerrado === 'true';
+  const unidadPanel = unidadActiva();
+  const calendarioCerrado = !!unidadPanel && (unidadPanel.cerrada === 'true' || unidadPanel.cerrada === true);
 
   const itemsHtml = items.map(a => `
     <div class="item-actividad ${a.tipo === 'evento' ? 'item-evento' : 'item-tarea'}">
