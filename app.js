@@ -1061,16 +1061,18 @@ function plantillaReporte() {
 
   const opcionesGrados = `<option value="" disabled ${!estado.gradoFiltroReporte ? 'selected' : ''}>Seleccione destino...</option>` +
     `<option value="TODOS"${estado.gradoFiltroReporte === 'TODOS' ? ' selected' : ''}>Todos los grados (General)</option>` +
+    (rolSesion === 'profesor' ? `<option value="MI_REPORTE"${estado.gradoFiltroReporte === 'MI_REPORTE' ? ' selected' : ''}>Mi Reporte Personal</option>` : '') +
     listaGradosUnicos.map(g => `<option value="${esc(g)}"${estado.gradoFiltroReporte === g ? ' selected' : ''}>${esc(g)}</option>`).join('');
 
   let items = [];
   let unidadSeleccionadaTexto = '';
-  let gradoSeleccionadoTexto = estado.gradoFiltroReporte || '';
+  let gradoSeleccionadoTexto = estado.gradoFiltroReporte === 'MI_REPORTE' ? 'Mi Reporte Personal' : (estado.gradoFiltroReporte || '');
 
   if (estado.unidadReporteId && estado.gradoFiltroReporte) {
     if (estado.unidadReporteId === 'todas') {
       unidadSeleccionadaTexto = 'Todas las unidades';
       items = estado.actividades.filter(a => {
+        if (estado.gradoFiltroReporte === 'MI_REPORTE') return a.responsable === estado.sesion.nombre;
         if (estado.gradoFiltroReporte === 'TODOS') return true;
         if (!a.curso || a.curso === 'TODOS') return true;
         return a.curso.trim().toLowerCase() === estado.gradoFiltroReporte.trim().toLowerCase();
@@ -1080,6 +1082,7 @@ function plantillaReporte() {
       unidadSeleccionadaTexto = uObj ? uObj.name || uObj.nombre : '';
       items = estado.actividades.filter(a => {
         if (a.unidadId !== estado.unidadReporteId) return false;
+        if (estado.gradoFiltroReporte === 'MI_REPORTE') return a.responsable === estado.sesion.nombre;
         if (estado.gradoFiltroReporte === 'TODOS') return true;
         if (!a.curso || a.curso === 'TODOS') return true;
         return a.curso.trim().toLowerCase() === estado.gradoFiltroReporte.trim().toLowerCase();
