@@ -1068,7 +1068,7 @@ function plantillaReporte() {
 
   let items = [];
   let unidadSeleccionadaTexto = '';
-  let gradoSeleccionadoTexto = estado.gradoFiltroReporte === 'MI_REPORTE' ? `Mi Reporte Personal Profesor(a) ${estado.sesion.nombre}` : (estado.gradoFiltroReporte || '');
+  let gradoSeleccionadoTexto = estado.gradoFiltroReporte === 'MI_REPORTE' ? `Mi Reporte Personal - Profesor(a) ${estado.sesion.nombre}` : (estado.gradoFiltroReporte || '');
 
   if (estado.unidadReporteId && estado.gradoFiltroReporte) {
     if (estado.unidadReporteId === 'todas') {
