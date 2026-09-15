@@ -657,7 +657,9 @@ function plantillaCalendario() {
     opcionesGrados += `<option value="" disabled ${!estado.gradoActivoCalendario ? 'selected' : ''}>-- Seleccione un grado --</option>`;
   }
 
-  opcionesGrados += estado.grados.map(g => `<option value="${esc(g.nombre)}"${estado.gradoActivoCalendario === g.nombre ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('');
+  const listaGradosCalendario = esGlobal ? estado.grados : estado.grados.filter(g => g.nombre.trim().toLowerCase() !== 'profesores');
+
+  opcionesGrados += listaGradosCalendario.map(g => `<option value="${esc(g.nombre)}"${estado.gradoActivoCalendario === g.nombre ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('');
 
   const inicio = parseFecha(unidad.fechaInicio);
   const fin = parseFecha(unidad.fechaFin);
@@ -1066,7 +1068,7 @@ function plantillaReporte() {
 
   let items = [];
   let unidadSeleccionadaTexto = '';
-  let gradoSeleccionadoTexto = estado.gradoFiltroReporte === 'MI_REPORTE' ? 'Mi Reporte Personal' : (estado.gradoFiltroReporte || '');
+  let gradoSeleccionadoTexto = estado.gradoFiltroReporte === 'MI_REPORTE' ? `Mi Reporte Personal Profesor(a) ${estado.sesion.nombre}` : (estado.gradoFiltroReporte || '');
 
   if (estado.unidadReporteId && estado.gradoFiltroReporte) {
     if (estado.unidadReporteId === 'todas') {
