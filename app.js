@@ -657,9 +657,7 @@ function plantillaCalendario() {
     opcionesGrados += `<option value="" disabled ${!estado.gradoActivoCalendario ? 'selected' : ''}>-- Seleccione un grado --</option>`;
   }
 
-  const listaGradosCalendario = esGlobal ? estado.grados : estado.grados.filter(g => g.nombre.trim().toLowerCase() !== 'profesores');
-
-  opcionesGrados += listaGradosCalendario.map(g => `<option value="${esc(g.nombre)}"${estado.gradoActivoCalendario === g.nombre ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('');
+  opcionesGrados += estado.grados.map(g => `<option value="${esc(g.nombre)}"${estado.gradoActivoCalendario === g.nombre ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('');
 
   const inicio = parseFecha(unidad.fechaInicio);
   const fin = parseFecha(unidad.fechaFin);
@@ -1096,14 +1094,35 @@ function plantillaReporte() {
   const nombreColegio = estado.configuracion.nombreColegio || '';
   const esAdmin = estado.sesion.rol === 'admin';
 
-  const filasTabla = items.map(a => `
-    <tr>
-      <td class="celda-fecha">${formatFechaLarga(a.fecha)}</td>
-      <td><span class="etiqueta-tipo ${a.tipo === 'evento' ? 'etiqueta-evento' : 'etiqueta-tarea'}">${a.tipo === 'evento' ? 'Evento' : 'Tarea'}</span></td>
-      <td>${esc(a.titulo)} ${a.curso ? `<br><small>(${esc(a.curso)})</small>` : ''}</td>
-      <td class="celda-detalle">${esc(a.materia || '')} ${a.descripcion ? '— ' + esc(a.descripcion) : ''}</td>
-      <td>${esc(a.responsable)}</td>
-    </tr>`).join('');
+  const esMiReporte = estado.gradoFiltroReporte === 'MI_REPORTE';
+
+  let filasTabla, encabezadoTabla;
+  if (esMiReporte) {
+    encabezadoTabla = `<th>Fecha</th><th>Grado</th><th>Materia</th><th>Actividad</th><th>Detalle</th>`;
+    const porFecha = {};
+    items.forEach(a => { (porFecha[a.fecha] = porFecha[a.fecha] || []).push(a); });
+    filasTabla = Object.keys(porFecha).sort().map(fecha => {
+      const acts = porFecha[fecha];
+      return acts.map((a, i) => `
+        <tr>
+          ${i === 0 ? `<td class="celda-fecha" rowspan="${acts.length}">${formatFechaLarga(fecha)}</td>` : ''}
+          <td>${esc(a.curso || '')}</td>
+          <td>${esc(a.materia || '')}</td>
+          <td>${esc(a.titulo)}</td>
+          <td class="celda-detalle">${esc(a.descripcion || '')}</td>
+        </tr>`).join('');
+    }).join('');
+  } else {
+    encabezadoTabla = `<th>Fecha</th><th>Tipo</th><th>Actividad</th><th>Detalle</th><th>Responsable</th>`;
+    filasTabla = items.map(a => `
+      <tr>
+        <td class="celda-fecha">${formatFechaLarga(a.fecha)}</td>
+        <td><span class="etiqueta-tipo ${a.tipo === 'evento' ? 'etiqueta-evento' : 'etiqueta-tarea'}">${a.tipo === 'evento' ? 'Evento' : 'Tarea'}</span></td>
+        <td>${esc(a.titulo)} ${a.curso ? `<br><small>(${esc(a.curso)})</small>` : ''}</td>
+        <td class="celda-detalle">${esc(a.materia || '')} ${a.descripcion ? '— ' + esc(a.descripcion) : ''}</td>
+        <td>${esc(a.responsable)}</td>
+      </tr>`).join('');
+  }
 
   return `
     <div class="vista">
@@ -1132,7 +1151,7 @@ function plantillaReporte() {
         </div>
         ${items.length === 0 ? `<p class="reporte-vacio">No hay actividades registradas para esta selección.</p>` : `
           <table class="tabla-reporte">
-            <thead><tr><th>Fecha</th><th>Tipo</th><th>Actividad</th><th>Detalle</th><th>Responsable</th></tr></thead>
+            <thead><tr>${encabezadoTabla}</tr></thead>
             <tbody>${filasTabla}</tbody>
           </table>`}
       </div>`}
