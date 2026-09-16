@@ -92,17 +92,32 @@ function esGradoGraduando(nombreGrado) {
   return !!g && (g.graduando === true || g.graduando === 'true');
 }
 
+// Una actividad puede tener varios "alcances" a la vez guardados en curso, separados por coma
+// (ej. "Profesores,GRADUANDOS"). Esta función decide si esa actividad debe verse para un grado dado.
+function actividadCubreGrado(a, gradoSeleccionado) {
+  if (!a.curso || a.curso === '') return true;
+  const alcances = String(a.curso).split(',').map(s => s.trim()).filter(Boolean);
+  if (alcances.length === 0) return true;
+  if (alcances.includes('TODOS')) return true;
+  return alcances.some(s => {
+    if (s === 'GRADUANDOS') return esGradoGraduando(gradoSeleccionado);
+    return s.toLowerCase() === gradoSeleccionado.trim().toLowerCase();
+  });
+}
+
+// Texto legible para mostrar el alcance de una actividad (badges, reportes)
+function etiquetaCurso(curso) {
+  if (!curso) return '';
+  if (curso === 'TODOS') return 'Todos los grados';
+  return curso.split(',').map(s => s.trim()).map(s => s === 'GRADUANDOS' ? 'Solo Graduandos' : s).join(' + ');
+}
+
 function getEstadoDiaGrado(fechaStr, actividades, gradoSeleccionado) {
   const delDia = actividades.filter(a => a.fecha === fechaStr);
   
   const visibles = delDia.filter(a => {
     if (gradoSeleccionado === 'TODOS') return true;
-    if (a.curso === 'GRADUANDOS') return esGradoGraduando(gradoSeleccionado);
-    if (esRolGlobal(a.rol)) {
-      if (!a.curso || a.curso === 'TODOS' || a.curso === '') return true;
-      return a.curso.trim().toLowerCase() === gradoSeleccionado.trim().toLowerCase();
-    }
-    return a.curso && a.curso.trim().toLowerCase() === gradoSeleccionado.trim().toLowerCase();
+    return actividadCubreGrado(a, gradoSeleccionado);
   });
 
   const eventos = visibles.filter(a => a.tipo === 'evento');
@@ -385,21 +400,20 @@ async function manejarEnvioActividad(ev) {
     const esMaestros = globalCheckMaestros ? globalCheckMaestros.checked : false;
     const esTodos = globalCheckTodos ? globalCheckTodos.checked : false;
     const esGraduandos = globalCheckGraduandos ? globalCheckGraduandos.checked : false;
-    if (esTodos) {
-      curso = 'TODOS';
-    } else if (esMaestros && esGraduandos) {
-      curso = 'TODOS';
-    } else if (esMaestros) {
-      curso = 'Profesores';
-    } else if (esGraduandos) {
-      curso = 'GRADUANDOS';
+    const alcancesElegidos = [];
+    if (esTodos) alcancesElegidos.push('TODOS');
+    if (esMaestros) alcancesElegidos.push('Profesores');
+    if (esGraduandos) alcancesElegidos.push('GRADUANDOS');
+
+    if (alcancesElegidos.length > 0) {
+      curso = alcancesElegidos.includes('TODOS') ? 'TODOS' : alcancesElegidos.join(',');
     } else {
       curso = estado.gradoActivoCalendario === 'TODOS' ? 'TODOS' : estado.gradoActivoCalendario;
     }
   }
 
   if (!titulo) { errorEl.innerHTML = mensajeError('Escribe un título.'); return; }
-  if (tipo === 'tarea' && (!curso || curso === 'TODOS' || curso === 'GRADUANDOS')) {
+  if (tipo === 'tarea' && (!curso || curso === 'TODOS' || curso === 'GRADUANDOS' || curso.includes(','))) {
     errorEl.innerHTML = mensajeError('Para crear una tarea debes seleccionar un grado específico (no "TODOS" ni "Solo Graduandos").');
     return;
   }
@@ -786,7 +800,7 @@ function plantillaPanelDia() {
     <div class="item-actividad ${a.tipo === 'evento' ? 'item-evento' : 'item-tarea'}">
       <div class="item-icono"><i data-lucide="${a.tipo === 'evento' ? 'flag' : 'book-open'}" style="width:15px;height:15px"></i></div>
       <div class="item-cuerpo">
-        <p class="item-titulo">${esc(a.titulo)} ${a.curso ? `<span style="font-size:11px;background:#e2e8f0;padding:2px 6px;border-radius:4px;">${esc(a.curso === 'GRADUANDOS' ? 'Solo Graduandos' : a.curso)}</span>` : ''}</p>
+        <p class="item-titulo">${esc(a.titulo)} ${a.curso ? `<span style="font-size:11px;background:#e2e8f0;padding:2px 6px;border-radius:4px;">${esc(etiquetaCurso(a.curso))}</span>` : ''}</p>
         ${a.tipo === 'tarea' && a.materia ? `<p class="item-meta">Materia: ${esc(a.materia)}</p>` : ''}
         ${a.descripcion ? `<p class="item-descripcion">${esc(a.descripcion)}</p>` : ''}
         <p class="item-responsable">${ROLES[a.rol] ? ROLES[a.rol].label : esc(a.rol)} · ${esc(a.responsable)}</p>
@@ -843,9 +857,10 @@ function plantillaFormActividad(tipoFijo) {
   let selectorAlcanceGlobal = '';
   if (esGlobal) {
     const cursoActual = actividadEnEdicion ? (actividadEnEdicion.curso || '') : '';
-    const checkMaestrosChecked = actividadEnEdicion ? (cursoActual === 'Profesores' || cursoActual === 'TODOS') : false;
-    const checkTodosChecked = actividadEnEdicion ? (cursoActual === 'TODOS') : false;
-    const checkGraduandosChecked = actividadEnEdicion ? (cursoActual === 'GRADUANDOS' || cursoActual === 'TODOS') : false;
+    const alcancesActuales = cursoActual ? cursoActual.split(',').map(s => s.trim()) : [];
+    const checkMaestrosChecked = alcancesActuales.includes('Profesores') || alcancesActuales.includes('TODOS');
+    const checkTodosChecked = alcancesActuales.includes('TODOS');
+    const checkGraduandosChecked = alcancesActuales.includes('GRADUANDOS') || alcancesActuales.includes('TODOS');
 
     selectorAlcanceGlobal = `
       <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:12px;border-radius:8px;margin-bottom:12px;">
@@ -1103,9 +1118,7 @@ function plantillaReporte() {
       items = estado.actividades.filter(a => {
         if (estado.gradoFiltroReporte === 'MI_REPORTE') return a.responsable === estado.sesion.nombre;
         if (estado.gradoFiltroReporte === 'TODOS') return true;
-        if (a.curso === 'GRADUANDOS') return esGradoGraduando(estado.gradoFiltroReporte);
-        if (!a.curso || a.curso === 'TODOS') return true;
-        return a.curso.trim().toLowerCase() === estado.gradoFiltroReporte.trim().toLowerCase();
+        return actividadCubreGrado(a, estado.gradoFiltroReporte);
       });
     } else {
       const uObj = estado.unidades.find(x => x.id === estado.unidadReporteId);
@@ -1114,9 +1127,7 @@ function plantillaReporte() {
         if (a.unidadId !== estado.unidadReporteId) return false;
         if (estado.gradoFiltroReporte === 'MI_REPORTE') return a.responsable === estado.sesion.nombre;
         if (estado.gradoFiltroReporte === 'TODOS') return true;
-        if (a.curso === 'GRADUANDOS') return esGradoGraduando(estado.gradoFiltroReporte);
-        if (!a.curso || a.curso === 'TODOS') return true;
-        return a.curso.trim().toLowerCase() === estado.gradoFiltroReporte.trim().toLowerCase();
+        return actividadCubreGrado(a, estado.gradoFiltroReporte);
       });
     }
     items.sort((a, b) => a.fecha.localeCompare(b.fecha));
@@ -1137,7 +1148,7 @@ function plantillaReporte() {
       return acts.map((a, i) => `
         <tr>
           ${i === 0 ? `<td class="celda-fecha" rowspan="${acts.length}">${formatFechaLarga(fecha)}</td>` : ''}
-          <td>${esc(a.curso === 'GRADUANDOS' ? 'Solo Graduandos' : (a.curso || ''))}</td>
+          <td>${esc(a.curso ? etiquetaCurso(a.curso) : '')}</td>
           <td>${esc(a.materia || '')}</td>
           <td>${esc(a.titulo)}</td>
           <td class="celda-detalle">${esc(a.descripcion || '')}</td>
@@ -1149,7 +1160,7 @@ function plantillaReporte() {
       <tr>
         <td class="celda-fecha">${formatFechaLarga(a.fecha)}</td>
         <td><span class="etiqueta-tipo ${a.tipo === 'evento' ? 'etiqueta-evento' : 'etiqueta-tarea'}">${a.tipo === 'evento' ? 'Evento' : 'Tarea'}</span></td>
-        <td>${esc(a.titulo)} ${a.curso ? `<br><small>(${esc(a.curso === 'GRADUANDOS' ? 'Solo Graduandos' : a.curso)})</small>` : ''}</td>
+        <td>${esc(a.titulo)} ${a.curso ? `<br><small>(${esc(etiquetaCurso(a.curso))})</small>` : ''}</td>
         <td class="celda-detalle">${esc(a.materia || '')} ${a.descripcion ? '— ' + esc(a.descripcion) : ''}</td>
         <td>${esc(a.responsable)}</td>
       </tr>`).join('');
