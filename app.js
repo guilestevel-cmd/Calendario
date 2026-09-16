@@ -472,7 +472,6 @@ async function manejarEnvioUsuario(ev) {
   const errorEl = document.getElementById('error-form-usuario');
 
   if (!nombre || !usuario) { errorEl.innerHTML = mensajeError('Completa nombre y usuario.'); return; }
-  if (rolNuevoUsuario === 'profesor' && !grado) { errorEl.innerHTML = mensajeError('Debe asignar un grado al profesor.'); return; }
   if (!usuarioEnEdicion && contrasena.length < 4) { errorEl.innerHTML = mensajeError('Mínimo 4 caracteres para contraseña.'); return; }
 
   try {
@@ -978,9 +977,9 @@ function plantillaUsuarios() {
 
   const bloqueGradoProfesor = `
     <div style="margin-top:12px;${rolNuevoUsuario === 'profesor' ? '' : 'display:none;'}">
-      <label class="etiqueta">Grado Asignado</label>
+      <label class="etiqueta">Grado Asignado (opcional)</label>
       <select class="selector" id="campo-grado-usuario" style="width:100%;">
-        <option value="" disabled ${!gradoActualForm ? 'selected' : ''}>-- Seleccione el grado del profesor --</option>
+        <option value=""${!gradoActualForm ? ' selected' : ''}>Sin grado asignado</option>
         ${opcionesGradosUsuario}
       </select>
     </div>`;
