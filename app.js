@@ -87,11 +87,17 @@ function esRolGlobal(rol) {
   return rol === 'comision' || rol === 'direccion' || rol === 'admin';
 }
 
+function esGradoGraduando(nombreGrado) {
+  const g = estado.grados.find(x => x.nombre === nombreGrado);
+  return !!g && (g.graduando === true || g.graduando === 'true');
+}
+
 function getEstadoDiaGrado(fechaStr, actividades, gradoSeleccionado) {
   const delDia = actividades.filter(a => a.fecha === fechaStr);
   
   const visibles = delDia.filter(a => {
     if (gradoSeleccionado === 'TODOS') return true;
+    if (a.curso === 'GRADUANDOS') return esGradoGraduando(gradoSeleccionado);
     if (esRolGlobal(a.rol)) {
       if (!a.curso || a.curso === 'TODOS' || a.curso === '') return true;
       return a.curso.trim().toLowerCase() === gradoSeleccionado.trim().toLowerCase();
@@ -295,21 +301,30 @@ function pedirConfirmarEliminarUnidad(id) {
   render();
 }
 
-function abrirFormGrado() { estado.formGradoAbierto = true; render(); }
-function cerrarFormGrado() { estado.formGradoAbierto = false; render(); }
+let gradoEnEdicion = null;
+function abrirFormGrado(id) { gradoEnEdicion = id ? estado.grados.find(g => g.id === id) : null; estado.formGradoAbierto = true; render(); }
+function cerrarFormGrado() { estado.formGradoAbierto = false; gradoEnEdicion = null; render(); }
 
 async function manejarEnvioGrado(ev) {
   ev.preventDefault();
   const nombre = document.getElementById('campo-nombre-grado').value.trim();
+  const graduando = document.getElementById('campo-graduando-grado').checked;
   const errorEl = document.getElementById('error-form-grado');
   if (!nombre) { errorEl.innerHTML = mensajeError('Escribe el nombre del grado.'); return; }
 
   try {
-    const nuevo = { id: generarId(), nombre };
-    const resultado = await api('grados', { metodo: 'POST', accion: 'crear', datos: nuevo });
-    if (!resultado.ok) { errorEl.innerHTML = mensajeError(resultado.error); return; }
-    estado.grados = resultado.lista;
+    if (gradoEnEdicion) {
+      const resultado = await api('grados', { metodo: 'POST', accion: 'editar', datos: { id: gradoEnEdicion.id, nombre, graduando } });
+      if (!resultado.ok) { errorEl.innerHTML = mensajeError(resultado.error); return; }
+      estado.grados = resultado.lista;
+    } else {
+      const nuevo = { id: generarId(), nombre, graduando };
+      const resultado = await api('grados', { metodo: 'POST', accion: 'crear', datos: nuevo });
+      if (!resultado.ok) { errorEl.innerHTML = mensajeError(resultado.error); return; }
+      estado.grados = resultado.lista;
+    }
     estado.formGradoAbierto = false;
+    gradoEnEdicion = null;
     render();
   } catch (e) { errorEl.innerHTML = mensajeError('Error al guardar grado.'); }
 }
@@ -364,24 +379,28 @@ async function manejarEnvioActividad(ev) {
   let curso = estado.gradoActivoCalendario;
   const globalCheckMaestros = document.getElementById('scope-maestros');
   const globalCheckTodos = document.getElementById('scope-todos');
+  const globalCheckGraduandos = document.getElementById('scope-graduandos');
 
   if (esRolGlobal(estado.sesion.rol)) {
     const esMaestros = globalCheckMaestros ? globalCheckMaestros.checked : false;
     const esTodos = globalCheckTodos ? globalCheckTodos.checked : false;
-    if (esMaestros && esTodos) {
+    const esGraduandos = globalCheckGraduandos ? globalCheckGraduandos.checked : false;
+    if (esTodos) {
+      curso = 'TODOS';
+    } else if (esMaestros && esGraduandos) {
       curso = 'TODOS';
     } else if (esMaestros) {
       curso = 'Profesores';
-    } else if (esTodos) {
-      curso = 'TODOS';
+    } else if (esGraduandos) {
+      curso = 'GRADUANDOS';
     } else {
       curso = estado.gradoActivoCalendario === 'TODOS' ? 'TODOS' : estado.gradoActivoCalendario;
     }
   }
 
   if (!titulo) { errorEl.innerHTML = mensajeError('Escribe un título.'); return; }
-  if (tipo === 'tarea' && (!curso || curso === 'TODOS')) {
-    errorEl.innerHTML = mensajeError('Para crear una tarea debes seleccionar un grado específico (no "TODOS").');
+  if (tipo === 'tarea' && (!curso || curso === 'TODOS' || curso === 'GRADUANDOS')) {
+    errorEl.innerHTML = mensajeError('Para crear una tarea debes seleccionar un grado específico (no "TODOS" ni "Solo Graduandos").');
     return;
   }
 
@@ -767,7 +786,7 @@ function plantillaPanelDia() {
     <div class="item-actividad ${a.tipo === 'evento' ? 'item-evento' : 'item-tarea'}">
       <div class="item-icono"><i data-lucide="${a.tipo === 'evento' ? 'flag' : 'book-open'}" style="width:15px;height:15px"></i></div>
       <div class="item-cuerpo">
-        <p class="item-titulo">${esc(a.titulo)} ${a.curso ? `<span style="font-size:11px;background:#e2e8f0;padding:2px 6px;border-radius:4px;">${esc(a.curso)}</span>` : ''}</p>
+        <p class="item-titulo">${esc(a.titulo)} ${a.curso ? `<span style="font-size:11px;background:#e2e8f0;padding:2px 6px;border-radius:4px;">${esc(a.curso === 'GRADUANDOS' ? 'Solo Graduandos' : a.curso)}</span>` : ''}</p>
         ${a.tipo === 'tarea' && a.materia ? `<p class="item-meta">Materia: ${esc(a.materia)}</p>` : ''}
         ${a.descripcion ? `<p class="item-descripcion">${esc(a.descripcion)}</p>` : ''}
         <p class="item-responsable">${ROLES[a.rol] ? ROLES[a.rol].label : esc(a.rol)} · ${esc(a.responsable)}</p>
@@ -826,6 +845,7 @@ function plantillaFormActividad(tipoFijo) {
     const cursoActual = actividadEnEdicion ? (actividadEnEdicion.curso || '') : '';
     const checkMaestrosChecked = actividadEnEdicion ? (cursoActual === 'Profesores' || cursoActual === 'TODOS') : false;
     const checkTodosChecked = actividadEnEdicion ? (cursoActual === 'TODOS') : false;
+    const checkGraduandosChecked = actividadEnEdicion ? (cursoActual === 'GRADUANDOS' || cursoActual === 'TODOS') : false;
 
     selectorAlcanceGlobal = `
       <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:12px;border-radius:8px;margin-bottom:12px;">
@@ -835,10 +855,13 @@ function plantillaFormActividad(tipoFijo) {
             <input type="checkbox" id="scope-maestros"${checkMaestrosChecked ? ' checked' : ''}> Solo Maestros (Calendario exclusivo profesores)
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;cursor:pointer;">
+            <input type="checkbox" id="scope-graduandos"${checkGraduandosChecked ? ' checked' : ''}> Solo Graduandos (grados marcados como graduandos)
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;cursor:pointer;">
             <input type="checkbox" id="scope-todos"${checkTodosChecked ? ' checked' : ''}> Todos los Alumnos (General para todos los grados)
           </label>
         </div>
-        <small style="color:#64748b;display:block;margin-top:6px;">Puedes marcar ambos si la actividad aplica tanto para profesores como para todos los alumnos.</small>
+        <small style="color:#64748b;display:block;margin-top:6px;">Puedes marcar varias si la actividad aplica a más de un grupo.</small>
       </div>`;
   }
 
@@ -929,10 +952,14 @@ function plantillaUnidades() {
 
 function plantillaGrados() {
   if (estado.sesion.rol !== 'admin') return '';
+  const gradoEdit = gradoEnEdicion;
   const formHtml = estado.formGradoAbierto ? `
     <form class="tarjeta form-unidad" onsubmit="manejarEnvioGrado(event)">
       <label class="etiqueta">Nombre del grado</label>
-      <input class="campo" id="campo-nombre-grado" placeholder="Ej. Cuarto Bachillerato o Profesores">
+      <input class="campo" id="campo-nombre-grado" placeholder="Ej. Cuarto Bachillerato o Profesores" value="${gradoEdit ? esc(gradoEdit.nombre) : ''}">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;cursor:pointer;margin-top:10px;">
+        <input type="checkbox" id="campo-graduando-grado"${gradoEdit && (gradoEdit.graduando === true || gradoEdit.graduando === 'true') ? ' checked' : ''}> Es un grado de graduandos
+      </label>
       <div id="error-form-grado"></div>
       <div class="fila-botones">
         <button type="button" class="boton boton-fantasma" onclick="cerrarFormGrado()">Cancelar</button>
@@ -955,9 +982,10 @@ function plantillaGrados() {
         ${estado.grados.map(g => `
           <div class="tarjeta-unidad">
             <div class="tarjeta-unidad-cuerpo" style="cursor:default;">
-              <p class="tarjeta-unidad-nombre">${esc(g.nombre)}</p>
+              <p class="tarjeta-unidad-nombre">${esc(g.nombre)} ${(g.graduando === true || g.graduando === 'true') ? '<span style="font-size:11px;background:#dbeafe;color:#1e40af;padding:2px 6px;border-radius:4px;margin-left:6px;">Graduandos</span>' : ''}</p>
             </div>
             <div class="tarjeta-unidad-acciones">
+              <button class="boton-icono" onclick="abrirFormGrado('${g.id}')" title="Editar"><i data-lucide="pencil"></i></button>
               <button class="boton-icono boton-icono-peligro" onclick="pedirConfirmarEliminarGrado('${g.id}')" title="Eliminar"><i data-lucide="trash-2"></i></button>
             </div>
           </div>`).join('')}
@@ -1075,6 +1103,7 @@ function plantillaReporte() {
       items = estado.actividades.filter(a => {
         if (estado.gradoFiltroReporte === 'MI_REPORTE') return a.responsable === estado.sesion.nombre;
         if (estado.gradoFiltroReporte === 'TODOS') return true;
+        if (a.curso === 'GRADUANDOS') return esGradoGraduando(estado.gradoFiltroReporte);
         if (!a.curso || a.curso === 'TODOS') return true;
         return a.curso.trim().toLowerCase() === estado.gradoFiltroReporte.trim().toLowerCase();
       });
@@ -1085,6 +1114,7 @@ function plantillaReporte() {
         if (a.unidadId !== estado.unidadReporteId) return false;
         if (estado.gradoFiltroReporte === 'MI_REPORTE') return a.responsable === estado.sesion.nombre;
         if (estado.gradoFiltroReporte === 'TODOS') return true;
+        if (a.curso === 'GRADUANDOS') return esGradoGraduando(estado.gradoFiltroReporte);
         if (!a.curso || a.curso === 'TODOS') return true;
         return a.curso.trim().toLowerCase() === estado.gradoFiltroReporte.trim().toLowerCase();
       });
@@ -1107,7 +1137,7 @@ function plantillaReporte() {
       return acts.map((a, i) => `
         <tr>
           ${i === 0 ? `<td class="celda-fecha" rowspan="${acts.length}">${formatFechaLarga(fecha)}</td>` : ''}
-          <td>${esc(a.curso || '')}</td>
+          <td>${esc(a.curso === 'GRADUANDOS' ? 'Solo Graduandos' : (a.curso || ''))}</td>
           <td>${esc(a.materia || '')}</td>
           <td>${esc(a.titulo)}</td>
           <td class="celda-detalle">${esc(a.descripcion || '')}</td>
@@ -1119,7 +1149,7 @@ function plantillaReporte() {
       <tr>
         <td class="celda-fecha">${formatFechaLarga(a.fecha)}</td>
         <td><span class="etiqueta-tipo ${a.tipo === 'evento' ? 'etiqueta-evento' : 'etiqueta-tarea'}">${a.tipo === 'evento' ? 'Evento' : 'Tarea'}</span></td>
-        <td>${esc(a.titulo)} ${a.curso ? `<br><small>(${esc(a.curso)})</small>` : ''}</td>
+        <td>${esc(a.titulo)} ${a.curso ? `<br><small>(${esc(a.curso === 'GRADUANDOS' ? 'Solo Graduandos' : a.curso)})</small>` : ''}</td>
         <td class="celda-detalle">${esc(a.materia || '')} ${a.descripcion ? '— ' + esc(a.descripcion) : ''}</td>
         <td>${esc(a.responsable)}</td>
       </tr>`).join('');
