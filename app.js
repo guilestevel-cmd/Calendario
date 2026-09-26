@@ -662,6 +662,20 @@ function plantillaBarra() {
     </aside>`;
 }
 
+// Función auxiliar segura para generar el HTML de las vistas previas sin romper sintaxis
+function generarHtmlPreview(info) {
+  const itemsPreview = info.delDiaVisible.slice(0, 3);
+  let htmlPreview = '';
+  itemsPreview.forEach(item => {
+    let textoItem = item.tipo === 'evento' ? esc(item.titulo) : `${item.curso ? esc(item.curso) : ''}: ${esc(item.titulo)}`;
+    htmlPreview += `<div class="preview-item preview-${item.tipo}" draggable="true" ondragstart="event.dataTransfer.setData('text/plain', '${item.id}')" title="${esc(item.titulo)}">${textoItem}</div>`;
+  });
+  if (info.delDiaVisible.length > 3) {
+    htmlPreview += `<div class="preview-mas">+${info.delDiaVisible.length - 3} más</div>`;
+  }
+  return htmlPreview;
+}
+
 function plantillaCalendario() {
   if (!estado.unidades.length) {
     return plantillaEstadoVacio('No hay unidades', 'Crea una unidad primero.', estado.sesion.rol === 'admin' ? `<button class="boton boton-primario" onclick="cambiarVista('unidades')">Crear unidad</button>` : '');
@@ -729,16 +743,7 @@ function plantillaCalendario() {
         if (!activo) return `<div class="celda-dia celda-inactiva"><span class="numero-dia">${d.getDate()}</span></div>`;
         
         const info = getEstadoDiaGrado(fechaStr, actividadesUnidad, estado.gradoActivoCalendario);
-        
-        let htmlPreview = '';
-        const itemsPreview = info.delDiaVisible.slice(0, 3);
-        itemsPreview.forEach(item => {
-          let textoItem = item.tipo === 'evento' ? esc(item.titulo) : `${item.curso ? esc(item.curso) : ''}: ${esc(item.titulo)}`;
-          htmlPreview += `<div class="preview-item preview-${item.tipo}" draggable="true" ondragstart="event.dataTransfer.setData('text/plain', '${item.id}')" title="${esc(item.titulo)}">${textoItem}</div>`;
-        });
-        if (info.delDiaVisible.length > 3) {
-          htmlPreview += `<div class="preview-mas">+${info.delDiaVisible.length - 3} más</div>`;
-        }
+        const htmlPreview = generarHtmlPreview(info);
 
         return `
           <div class="celda-dia celda-${info.estado}${fechaStr === hoy ? ' celda-hoy' : ''}" 
@@ -793,7 +798,6 @@ function plantillaCalendario() {
     </div>`;
 }
 
-// Función para procesar el soltar (drag and drop) de una actividad a otro día con validación completa
 async function moverActividadPorDragDrop(nuevaFecha) {
   const idActividad = event.dataTransfer.getData('text/plain');
   if (!idActividad) return;
