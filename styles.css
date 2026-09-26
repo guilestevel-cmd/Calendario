@@ -985,3 +985,49 @@ button:active, .boton:active, .barra-item:active, .celda-dia:active, .opcion-tip
   }
 }
 
+/* ================================================================= */
+/* ESTILOS DE VISTA PREVIA Y ARRASTRE EN CELDAS                      */
+/* ================================================================= */
+
+.contenedor-preview-dia {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  overflow: hidden;
+  max-height: 48px;
+}
+
+.preview-item {
+  font-size: 9.5px;
+  padding: 1px 3px;
+  border-radius: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: grab;
+}
+
+.preview-item:active {
+  cursor: grabbing;
+}
+
+.preview-evento {
+  background-color: #0f2b27;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.preview-tarea {
+  background-color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: var(--tinta);
+}
+
+.preview-mas {
+  font-size: 8.5px;
+  color: var(--tinta-suave);
+  text-align: right;
+  font-weight: bold;
+}
