@@ -676,6 +676,32 @@ function generarHtmlPreview(info) {
   return htmlPreview;
 }
 
+function generarCeldaCalendario(d, unidad, hoy, actividadesUnidad) {
+  if (!d) return `<div class="celda-vacia"></div>`;
+  const fechaStr = formatFecha(d);
+  const activo = enRango(d, unidad.fechaInicio, unidad.fechaFin);
+  if (!activo) return `<div class="celda-dia celda-inactiva"><span class="numero-dia">${d.getDate()}</span></div>`;
+  
+  const info = getEstadoDiaGrado(fechaStr, actividadesUnidad, estado.gradoActivoCalendario);
+  const htmlPreview = generarHtmlPreview(info);
+  const claseHoy = fechaStr === hoy ? ' celda-hoy' : '';
+
+  return `
+    <div class="celda-dia celda-${info.estado}${claseHoy}" 
+         onclick="abrirDia('${fechaStr}')"
+         ondragover="event.preventDefault()"
+         ondrop="event.preventDefault(); moverActividadPorDragDrop('${fechaStr}')">
+      <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+        <span class="numero-dia">${d.getDate()}</span>
+        ${(info.ocupadas > 0 || info.tieneEvento) ? `<span class="conteo-dia">${info.ocupadas}/${info.capacidad}</span>` : ''}
+      </div>
+      ${info.tieneEvento ? `<i data-lucide="flag" class="marca-evento" style="width:11px;height:11px"></i>` : ''}
+      <div class="contenedor-preview-dia">
+        ${htmlPreview}
+      </div>
+    </div>`;
+}
+
 function plantillaCalendario() {
   if (!estado.unidades.length) {
     return plantillaEstadoVacio('No hay unidades', 'Crea una unidad primero.', estado.sesion.rol === 'admin' ? `<button class="boton boton-primario" onclick="cambiarVista('unidades')">Crear unidad</button>` : '');
@@ -697,7 +723,6 @@ function plantillaCalendario() {
   }
 
   const listaGradosCalendario = esGlobal ? estado.grados : estado.grados.filter(g => g.nombre.trim().toLowerCase() !== 'profesores');
-
   opcionesGrados += listaGradosCalendario.map(g => `<option value="${esc(g.nombre)}"${estado.gradoActivoCalendario === g.nombre ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('');
 
   const inicio = parseFecha(unidad.fechaInicio);
@@ -736,29 +761,7 @@ function plantillaCalendario() {
 
   const filas = semanas.map(semana => `
     <div class="fila-semana">
-      ${semana.map(d => {
-        if (!d) return `<div class="celda-vacia"></div>`;
-        const fechaStr = formatFecha(d);
-        const activo = enRango(d, unidad.fechaInicio, unidad.fechaFin);
-        if (!activo) return `<div class="celda-dia celda-inactiva"><span class="numero-dia">${d.getDate()}</span></div>`;
-        
-        const info = getEstadoDiaGrado(fechaStr, actividadesUnidad, estado.gradoActivoCalendario);
-        const htmlPreview = generarHtmlPreview(info);
-
-        return `
-          <div class="celda-dia celda-${info.estado}${fechaStr === hoy ? ' celda-hoy' : ''}" 
-               onclick="abrirDia('${fechaStr}')"
-               ondragover="event.preventDefault()"
-               ondrop="event.preventDefault(); moverActividadPorDragDrop('${fechaStr}')">
-            <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
-              <span class="numero-dia">${d.getDate()}</span>${(info.ocupadas > 0 || info.tieneEvento) ? `<span class="conteo-dia">${info.ocupadas}/${info.capacidad}</span>` : ''}
-            </div>
-            ${info.tieneEvento ? `<i data-lucide="flag" class="marca-evento" style="width:11px;height:11px"></i>` : ''}
-            <div class="contenedor-preview-dia">
-              ${htmlPreview}
-            </div>
-          </div>`;
-      }).join('')}
+      ${semana.map(d => generarCeldaCalendario(d, unidad, hoy, actividadesUnidad)).join('')}
     </div>`).join('');
 
   return `
