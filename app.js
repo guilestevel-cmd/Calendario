@@ -730,18 +730,11 @@ function plantillaCalendario() {
         
         const info = getEstadoDiaGrado(fechaStr, actividadesUnidad, estado.gradoActivoCalendario);
         
-        // Vista previa optimizada dentro de la celda (máximo 3 elementos visibles)
         let htmlPreview = '';
         const itemsPreview = info.delDiaVisible.slice(0, 3);
         itemsPreview.forEach(item => {
-          let textoItem = '';
-          if (item.tipo === 'evento') {
-            textoItem = esc(item.titulo);
-          } else {
-            let nombreGradoCorto = item.curso ? esc(item.curso) : '';
-            textoItem = `${nombreGradoCorto}:${esc(item.titulo)}`;
-          }
-          htmlPreview += `<div class="preview-item preview-${item.tipo}" draggable="true" ondragstart="event.stopPropagation(); event.dataTransfer.setData('text/plain', '${item.id}')" title="${esc(item.titulo)}">${textoItem}</div>`;
+          let textoItem = item.tipo === 'evento' ? esc(item.titulo) : `${item.curso ? esc(item.curso) : ''}: ${esc(item.titulo)}`;
+          htmlPreview += `<div class="preview-item preview-${item.tipo}" draggable="true" ondragstart="event.dataTransfer.setData('text/plain', '${item.id}')" title="${esc(item.titulo)}">${textoItem}</div>`;
         });
         if (info.delDiaVisible.length > 3) {
           htmlPreview += `<div class="preview-mas">+${info.delDiaVisible.length - 3} más</div>`;
