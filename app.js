@@ -124,12 +124,16 @@ function getEstadoDiaGrado(fechaStr, actividades, gradoSeleccionado) {
   const tareas = visibles.filter(a => a.tipo === 'tarea');
 
   const tieneEvento = eventos.length > 0;
+  // Capacidad: 2 si hay evento institucional real, 5 si es un día totalmente normal
   const capacidad = tieneEvento ? 2 : 5;
   const ocupadas = tareas.length;
   
   let esta = 'libre';
   if (ocupadas >= capacidad) {
     esta = 'lleno';
+  } else if (ocupadas >= 3 || (capacidad === 5 && ocupadas >= 3) || (capacidad === 2 && ocupadas >= 1)) {
+    // Se muestra medio cargado cuando tiene 3 o más actividades en días normales (capacidad 5)
+    esta = 'medio';
   } else if (ocupadas > 0) {
     esta = 'medio';
   }
