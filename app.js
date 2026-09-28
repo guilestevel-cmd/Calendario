@@ -1155,35 +1155,60 @@ function plantillaReporte() {
 
   const nombreColegio = estado.configuracion.nombreColegio || '';
   const esAdmin = estado.sesion.rol === 'admin';
-
   const esMiReporte = estado.gradoFiltroReporte === 'MI_REPORTE';
 
-  let filasTabla, encabezadoTabla;
+  let filasTabla = '';
+  let encabezadoTabla = '';
+
   if (esMiReporte) {
-    encabezadoTabla = `<th>Fecha</th><th>Grado</th><th>Materia</th><th>Actividad</th><th>Detalle</th>`;
+    encabezadoTabla = '<th>Fecha</th><th>Grado</th><th>Materia</th><th>Actividad</th><th>Detalle</th>';
     const porFecha = {};
-    items.forEach(a => { (porFecha[a.fecha] = porFecha[a.fecha] || []).push(a); });
+    items.forEach(a => { 
+      if (!porFecha[a.fecha]) porFecha[a.fecha] = [];
+      porFecha[a.fecha].push(a); 
+    });
+    
     filasTabla = Object.keys(porFecha).sort().map(fecha => {
       const acts = porFecha[fecha];
-      return acts.map((a, i) => `
-        <tr>
-          ${i === 0 ? `<td class="celda-fecha" rowspan="${acts.length}">${formatFechaLarga(fecha)}</td>` : ''}
-          <td>${esc(a.curso ? etiquetaCurso(a.curso) : '')}</td>
-          <td>${esc(a.materia || '')}</td>
-          <td>${esc(a.titulo)}</td>
-          <td class="celda-detalle">${esc(a.descripcion || '')}</td>
-        </tr>`).join('');
+      return acts.map((a, i) => {
+        const celdaFecha = i === 0 ? `<td class="celda-fecha" rowspan="${acts.length}">${formatFechaLarga(fecha)}</td>` : '';
+        return `<tr>${celdaFecha}<td>${esc(a.curso ? etiquetaCurso(a.curso) : '')}</td><td>${esc(a.materia || '')}</td><td>${esc(a.titulo)}</td><td class="celda-detalle">${esc(a.descripcion || '')}</td></tr>`;
+      }).join('');
     }).join('');
   } else {
-    encabezadoTabla = `<th>Fecha</th><th>Tipo</th><th>Actividad</th><th>Detalle</th><th>Responsable</th>`;
-    filasTabla = items.map(a => `
-      <tr>
-        <td class="celda-fecha">${formatFechaLarga(a.fecha)}</td>
-        <td><span class="etiqueta-tipo ${a.tipo === 'evento' ? 'etiqueta-evento' : 'etiqueta-tarea'}">${a.tipo === 'evento' ? 'Evento' : 'Tarea'}</span></td>
-        <td>${esc(a.titulo)} ${a.curso ? `<br><small>(${esc(etiquetaCurso(a.curso))})</small>` : ''}</td>
-        <td class="celda-detalle">${esc(a.materia || '')} ${a.descripcion ? '— ' + esc(a.descripcion) : ''}</td>
-        <td>${esc(a.responsable)}</td>
-      </tr>`).join('');
+    encabezadoTabla = '<th>Fecha</th><th>Tipo</th><th>Actividad</th><th>Detalle</th><th>Responsable</th>';
+    filasTabla = items.map(a => {
+      const cursoBadge = a.curso ? `<br><small>(${esc(etiquetaCurso(a.curso))})</small>` : '';
+      const tipoClase = a.tipo === 'evento' ? 'etiqueta-evento' : 'etiqueta-tarea';
+      const tipoTexto = a.tipo === 'evento' ? 'Evento' : 'Tarea';
+      const detalleTexto = (a.materia || '') + (a.descripcion ? ' — ' + a.descripcion : '');
+      return `<tr><td class="celda-fecha">${formatFechaLarga(a.fecha)}</td><td><span class="etiqueta-tipo ${tipoClase}">${tipoTexto}</span></td><td>${esc(a.titulo)}${cursoBadge}</td><td class="celda-detalle">${esc(detalleTexto)}</td><td>${esc(a.responsable)}</td></tr>`;
+    }).join('');
+  }
+
+  const selectorAdmin = esAdmin ? `<div><label class="etiqueta">Establecimiento</label><input class="campo" value="${esc(nombreColegio)}" onchange="guardarNombreColegio(this)"></div>` : '';
+  
+  let contenidoReporte = '';
+  if (!estado.unidadReporteId || !estado.gradoFiltroReporte) {
+    contenidoReporte = `
+      <div class="tarjeta" style="text-align:center;padding:40px;color:var(--tinta-suave);">
+        <i data-lucide="printer" style="width:36px;height:36px;margin-bottom:8px;opacity:0.5;"></i>
+        <p>Selecciona una <b>Unidad</b> y un <b>Destino</b> en los selectores superiores para generar el reporte.</p>
+      </div>`;
+  } else {
+    const tablaHTML = items.length === 0 ? 
+      `<p class="reporte-vacio">No hay actividades registradas para esta selección.</p>` : 
+      `<table class="tabla-reporte"><thead><tr>${encabezadoTabla}</tr></thead><tbody>${filasTabla}</tbody></table>`;
+
+    contenidoReporte = `
+      <div class="hoja-reporte">
+        <div class="reporte-encabezado">
+          <p class="reporte-colegio">${esc(nombreColegio)}</p>
+          <h1 class="reporte-titulo">Plan de Actividades</h1>
+          <p class="reporte-unidad">${esc(unidadSeleccionadaTexto)} – ${esc(gradoSeleccionadoTexto)}</p>
+        </div>
+        ${tablaHTML}
+      </div>`;
   }
 
   return `
@@ -1196,30 +1221,12 @@ function plantillaReporte() {
       <div class="controles-reporte no-imprimir" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;align-items:flex-end;">
         <div><label class="etiqueta">Unidad a reportar</label><select class="selector" onchange="cambiarUnidadReporte(this.value)">${opcionesUnidad}</select></div>
         <div><label class="etiqueta">Seleccionar Destino</label><select class="selector" onchange="cambiarGradoReporte(this.value)">${opcionesGrados}</select></div>
-        ${esAdmin ? `<div><label class="etiqueta">Establecimiento</label><input class="campo" value="${esc(nombreColegio)}" onchange="guardarNombreColegio(this)"></div>` : ''}
+        ${selectorAdmin}
       </div>
 
-      ${(!estado.unidadReporteId || !estado.gradoFiltroReporte) ? `
-        <div class="tarjeta" style="text-align:center;padding:40px;color:var(--tinta-suave);">
-          <i data-lucide="printer" style="width:36px;height:36px;margin-bottom:8px;opacity:0.5;"></i>
-          <p>Selecciona una <b>Unidad</b> y un <b>Destino</b> en los selectores superiores para generar el reporte.</p>
-        </div>
-      ` : `
-      <div class="hoja-reporte">
-        <div class="reporte-encabezado">
-          <p class="reporte-colegio">${esc(nombreColegio)}</p>
-          <h1 class="reporte-titulo">Plan de Actividades</h1>
-          <p class="reporte-unidad">${esc(unidadSeleccionadaTexto)} –${esc(gradoSeleccionadoTexto)}</p>
-        </div>
-        ${items.length === 0 ? `<p class="reporte-vacio">No hay actividades registradas para esta selección.</p>` : `
-          <table class="tabla-reporte">
-            <thead><tr>${encabezadoTabla}</tr></thead>
-            <tbody>${filasTabla}</tbody>
-          </table>`}
-      </div>`}
+      ${contenidoReporte}
     </div>`;
 }
-
 function plantillaEstadoVacio(titulo, cuerpo, accionHtml) {
   return `<div class="vista"><div class="estado-vacio"><i data-lucide="calendar-days"></i><h3>${esc(titulo)}</h3><p>${esc(cuerpo)}</p>${accionHtml || ''}</div></div>`;
 }
