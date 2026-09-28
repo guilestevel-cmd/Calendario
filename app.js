@@ -417,24 +417,34 @@ async function manejarEnvioActividad(ev) {
     return;
   }
 
+  // Al editar, la fecha se puede mover a otro día; al crear, sigue siendo el día del panel abierto.
+  const campoFecha = document.getElementById('campo-fecha-actividad');
+  const fechaDestino = (actividadEnEdicion && campoFecha) ? campoFecha.value : estado.diaSeleccionado;
+  if (!fechaDestino) { errorEl.innerHTML = mensajeError('Selecciona una fecha válida.'); return; }
+  const unidadDeLaActividad = estado.unidades.find(u => u.id === (actividadEnEdicion ? actividadEnEdicion.unidadId : estado.unidadActivaId));
+  if (unidadDeLaActividad && (fechaDestino < unidadDeLaActividad.fechaInicio || fechaDestino > unidadDeLaActividad.fechaFin)) {
+    errorEl.innerHTML = mensajeError(`La fecha debe estar dentro del rango de "${esc(unidadDeLaActividad.nombre)}" (${unidadDeLaActividad.fechaInicio} a ${unidadDeLaActividad.fechaFin}).`);
+    return;
+  }
+
   // La validación usa exactamente la misma lógica que el calendario muestra (por grado),
   // para que lo que se ve y lo que se permite guardar sea siempre lo mismo.
   const actividadesActuales = actividadesUnidadActual().filter(a => !actividadEnEdicion || a.id !== actividadEnEdicion.id);
   const gradoValidacion = tipo === 'tarea' ? curso : estado.gradoActivoCalendario;
-  const estadoDiaReal = getEstadoDiaGrado(estado.diaSeleccionado, actividadesActuales, gradoValidacion);
+  const estadoDiaReal = getEstadoDiaGrado(fechaDestino, actividadesActuales, gradoValidacion);
 
   const chequeo = puedeAgregar(tipo, estadoDiaReal);
   if (!chequeo.ok) { errorEl.innerHTML = mensajeError(chequeo.msg); return; }
 
   try {
     if (actividadEnEdicion) {
-      const editada = Object.assign({}, actividadEnEdicion, { tipo, titulo, descripcion, materia, curso });
+      const editada = Object.assign({}, actividadEnEdicion, { tipo, titulo, descripcion, materia, curso, fecha: fechaDestino });
       const resultado = await api('actividades', { metodo: 'POST', accion: 'editar', datos: editada });
       if (!resultado || resultado.error || !Array.isArray(resultado.lista)) throw new Error('Sin confirmación del servidor');
       estado.actividades = resultado.lista;
     } else {
       const nueva = {
-        id: generarId(), unidadId: estado.unidadActivaId, fecha: estado.diaSeleccionado,
+        id: generarId(), unidadId: estado.unidadActivaId, fecha: fechaDestino,
         tipo, titulo, descripcion, materia, curso,
         rol: estado.sesion.rol, responsable: estado.sesion.nombre, creadoEn: Date.now(),
       };
@@ -885,7 +895,10 @@ function plantillaFormActividad(tipoFijo) {
       ${selectorAlcanceGlobal}
       <label class="etiqueta">Título</label>
       <input class="campo" id="campo-titulo-actividad" value="${actividadEnEdicion ? esc(actividadEnEdicion.titulo) : ''}" placeholder="Nombre de la actividad">
-      <div id="bloque-campos-tarea" style="${tipoInicial === 'tarea' ? '' : 'display:none'}">
+      ${actividadEnEdicion ? `
+      <label class="etiqueta">Fecha</label>
+      <input type="date" class="campo" id="campo-fecha-actividad" value="${actividadEnEdicion.fecha}">
+      ` : ''}<div id="bloque-campos-tarea" style="${tipoInicial === 'tarea' ? '' : 'display:none'}">
         <label class="etiqueta">Materia</label>
         <input class="campo" id="campo-materia" value="${actividadEnEdicion ? esc(actividadEnEdicion.materia) : ''}" placeholder="Ej. Matemática">
         ${!esGlobal ? `<p style="font-size:11.5px;color:#52655f;margin-top:4px;">Asignado al grado: <b>${esc(estado.gradoActivoCalendario)}</b></p>` : ''}
