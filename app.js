@@ -429,7 +429,6 @@ async function manejarEnvioActividad(ev) {
   }
 
   const actividadesActuales = actividadesUnidadActual();
-  
   const delDia = actividadesActuales.filter(a => a.fecha === estado.diaSeleccionado);
   const visibles = delDia.filter(a => {
     if (estado.gradoActivoCalendario === 'TODOS') return true;
@@ -443,14 +442,10 @@ async function manejarEnvioActividad(ev) {
   });
   const tareasValidacion = visibles.filter(a => a.tipo === 'tarea' && (!actividadEnEdicion || a.id !== actividadEnEdicion.id));
 
-  const tieneEventoReal = eventosValidacion.length > 0;
-  const capacidadReal = tieneEventoReal ? 2 : 5;
-  const ocupadasReal = tareasValidacion.length;
-
   const estadoDiaReal = {
-    tieneEvento: tieneEventoReal,
-    ocupadas: ocupadasReal,
-    capacidad: capacidadReal
+    tieneEvento: eventosValidacion.length > 0,
+    ocupadas: tareasValidacion.length,
+    capacidad: eventosValidacion.length > 0 ? 2 : 5
   };
 
   const chequeo = puedeAgregar(tipo, estadoDiaReal);
@@ -1227,6 +1222,7 @@ function plantillaReporte() {
       ${contenidoReporte}
     </div>`;
 }
+
 function plantillaEstadoVacio(titulo, cuerpo, accionHtml) {
   return `<div class="vista"><div class="estado-vacio"><i data-lucide="calendar-days"></i><h3>${esc(titulo)}</h3><p>${esc(cuerpo)}</p>${accionHtml || ''}</div></div>`;
 }
