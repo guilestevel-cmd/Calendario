@@ -120,26 +120,39 @@ function getEstadoDiaGrado(fechaStr, actividades, gradoSeleccionado) {
     return actividadCubreGrado(a, gradoSeleccionado);
   });
 
+  // CORRECCIÓN CLAVE: El evento solo cuenta como real si cubre específicamente al grado seleccionado
   const eventos = visibles.filter(a => {
     if (a.tipo !== 'evento') return false;
     if (gradoSeleccionado === 'TODOS') return true;
     return actividadCubreGrado(a, gradoSeleccionado);
   });
-  
+
   const tareas = visibles.filter(a => a.tipo === 'tarea');
 
   const tieneEvento = eventos.length > 0;
   const capacidad = tieneEvento ? 2 : 5;
   const ocupadas = tareas.length;
+  
   let esta = 'libre';
-  if (ocupadas >= capacidad) esta = 'lleno';
-  else if (ocupadas >= Math.ceil(capacidad / 2)) esta = 'medio';
+  if (ocupadas >= capacidad) {
+    esta = 'lleno';
+  } else if (tieneEvento) {
+    esta = ocupadas > 0 ? 'medio' : 'libre';
+  } else {
+    // Días normales (capacidad 5): 'medio' solo a partir de 3 actividades (3 o 4 tareas)
+    if (ocupadas >= 3) {
+      esta = 'medio';
+    } else {
+      esta = 'libre';
+    }
+  }
 
   return { delDiaVisible: visibles, eventos, tareas, tieneEvento, capacidad, ocupadas, estado: esta };
 }
 
 function puedeAgregar(tipo, estadoDiaReal) {
   if (tipo === 'evento') {
+    if (estadoDiaReal.tieneEvento) return { ok: false, msg: 'Este día ya cuenta con un evento institucional relevante.' };
     return { ok: true };
   }
   if (estadoDiaReal.ocupadas >= estadoDiaReal.capacidad) {
@@ -423,13 +436,30 @@ async function manejarEnvioActividad(ev) {
   }
 
   const actividadesActuales = actividadesUnidadActual();
+  
+  // Validación estricta y consistente con getEstadoDiaGrado para el envío
+  const delDia = actividadesActuales.filter(a => a.fecha === estado.diaSeleccionado);
+  const visibles = delDia.filter(a => {
+    if (estado.gradoActivoCalendario === 'TODOS') return true;
+    return actividadCubreGrado(a, estado.gradoActivoCalendario);
+  });
+
+  const eventosValidacion = visibles.filter(a => {
+    if (a.tipo !== 'evento') return false;
+    if (estado.gradoActivoCalendario === 'TODOS') return true;
+    return actividadCubreGrado(a, estado.gradoActivoCalendario);
+  });
+  const tareasValidacion = visibles.filter(a => a.tipo === 'tarea' && (!actividadEnEdicion || a.id !== actividadEnEdicion.id));
+
+  const tieneEventoReal = eventosValidacion.length > 0;
+  const capacidadReal = tieneEventoReal ? 2 : 5;
+  const ocupadasReal = tareasValidacion.length;
+
   const estadoDiaReal = {
-    eventos: actividadesActuales.filter(a => a.fecha === estado.diaSeleccionado && a.tipo === 'evento' && (!actividadEnEdicion || a.id !== actividadEnEdicion.id)),
-    tareas: actividadesActuales.filter(a => a.fecha === estado.diaSeleccionado && a.tipo === 'tarea' && (!actividadEnEdicion || a.id !== actividadEnEdicion.id)),
+    tieneEvento: tieneEventoReal,
+    ocupadas: ocupadasReal,
+    capacidad: capacidadReal
   };
-  estadoDiaReal.tieneEvento = estadoDiaReal.eventos.length > 0;
-  estadoDiaReal.ocupadas = estadoDiaReal.tareas.length;
-  estadoDiaReal.capacidad = estadoDiaReal.tieneEvento ? 2 : 5;
 
   const chequeo = puedeAgregar(tipo, estadoDiaReal);
   if (!chequeo.ok) { errorEl.innerHTML = mensajeError(chequeo.msg); return; }
