@@ -120,20 +120,20 @@ function getEstadoDiaGrado(fechaStr, actividades, gradoSeleccionado) {
     return actividadCubreGrado(a, gradoSeleccionado);
   });
 
-  const eventos = visibles.filter(a => a.tipo === 'evento');
+  const eventos = visibles.filter(a => {
+    if (a.tipo !== 'evento') return false;
+    if (gradoSeleccionado === 'TODOS') return true;
+    return actividadCubreGrado(a, gradoSeleccionado);
+  });
+  
   const tareas = visibles.filter(a => a.tipo === 'tarea');
 
   const tieneEvento = eventos.length > 0;
   const capacidad = tieneEvento ? 2 : 5;
   const ocupadas = tareas.length;
-  
   let esta = 'libre';
-  if (ocupadas >= capacidad) {
-    esta = 'lleno';
-  } else if (ocupadas > 0) {
-    // Si hay tareas pero no llena la capacidad, se marca como medio cargado
-    esta = (ocupadas >= Math.ceil(capacidad / 2)) ? 'medio' : 'medio';
-  }
+  if (ocupadas >= capacidad) esta = 'lleno';
+  else if (ocupadas >= Math.ceil(capacidad / 2)) esta = 'medio';
 
   return { delDiaVisible: visibles, eventos, tareas, tieneEvento, capacidad, ocupadas, estado: esta };
 }
@@ -739,12 +739,11 @@ function plantillaCalendario() {
         const activo = enRango(d, unidad.fechaInicio, unidad.fechaFin);
         if (!activo) return `<div class="celda-dia celda-inactiva"><span class="numero-dia">${d.getDate()}</span></div>`;
         
-       const info = getEstadoDiaGrado(fechaStr, actividadesUnidad, estado.gradoActivoCalendario);
+        const info = getEstadoDiaGrado(fechaStr, actividadesUnidad, estado.gradoActivoCalendario);
         return `
           <button class="celda-dia celda-${info.estado}${fechaStr === hoy ? ' celda-hoy' : ''}" onclick="abrirDia('${fechaStr}')">
-            ${info.tieneEvento ? `<i data-lucide="flag" class="marca-evento" style="width:11px;height:11px;color:#0f2b27;position:absolute;top:6px;right:6px;"></i>` : ''}
-            <span class="numero-dia">${d.getDate()}</span>
-            ${(info.ocupadas > 0 || info.tieneEvento) ? `<span class="conteo-dia">${info.ocupadas}/${info.capacidad}</span>` : ''}
+            ${info.tieneEvento ? `<i data-lucide="flag" class="marca-evento" style="width:11px;height:11px"></i>` : ''}
+            <span class="numero-dia">${d.getDate()}</span>${(info.ocupadas > 0 || info.tieneEvento) ? `<span class="conteo-dia">${info.ocupadas}/${info.capacidad}</span>` : ''}
           </button>`;
       }).join('')}
     </div>`).join('');
@@ -956,7 +955,7 @@ function plantillaUnidades() {
         <div class="tarjeta-unidad">
           <button class="tarjeta-unidad-cuerpo" onclick="seleccionarUnidadActiva('${u.id}')">
             <p class="tarjeta-unidad-nombre">${esc(u.nombre)}</p>
-            <p class="tarjeta-unidad-rango">${formatFechaCorta(u.fechaInicio)} — ${formatFechaCorta(u.fechaFin)} ${(u.cerrada === 'true' || u.cerrada === true) ? '<span style="font-size:11px;background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:4px;margin-left:6px;">Cerrada</span>' : ''}</p>
+            <p class="tarjeta-unidad-rango">${formatFechaCorta(u.fechaInicio)} — ${formatFechaCorta(u.fechaFin)}${(u.cerrada === 'true' || u.cerrada === true) ? '<span style="font-size:11px;background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:4px;margin-left:6px;">Cerrada</span>' : ''}</p>
           </button>
           <div class="tarjeta-unidad-acciones">
             <button class="boton-icono" onclick="alternarCierreUnidad('${u.id}')" title="${(u.cerrada === 'true' || u.cerrada === true) ? 'Habilitar ingresos en esta unidad' : 'Cerrar unidad (congelar ingresos)'}"><i data-lucide="${(u.cerrada === 'true' || u.cerrada === true) ? 'lock' : 'unlock'}"></i></button>
@@ -1001,7 +1000,7 @@ function plantillaGrados() {
         ${estado.grados.map(g => `
           <div class="tarjeta-unidad">
             <div class="tarjeta-unidad-cuerpo" style="cursor:default;">
-              <p class="tarjeta-unidad-nombre">${esc(g.nombre)} ${(g.graduando === true || g.graduando === 'true') ? '<span style="font-size:11px;background:#dbeafe;color:#1e40af;padding:2px 6px;border-radius:4px;margin-left:6px;">Graduandos</span>' : ''}</p>
+              <p class="tarjeta-unidad-nombre">${esc(g.nombre)}${(g.graduando === true || g.graduando === 'true') ? '<span style="font-size:11px;background:#dbeafe;color:#1e40af;padding:2px 6px;border-radius:4px;margin-left:6px;">Graduandos</span>' : ''}</p>
             </div>
             <div class="tarjeta-unidad-acciones">
               <button class="boton-icono" onclick="abrirFormGrado('${g.id}')" title="Editar"><i data-lucide="pencil"></i></button>
@@ -1045,8 +1044,7 @@ function plantillaUsuarios() {
             <div><label class="etiqueta">Contraseña ${usuarioEnEdicion ? '(dejar en blanco para mantener)' : ''}</label><input class="campo" type="password" id="campo-contrasena-usuario"></div>
           </div>
           <label class="etiqueta" style="margin-top:12px;">Rol / Categoría</label>
-          <div class="selector-roles">${opcionesRol}</div>
-          ${bloqueGradoProfesor}
+          <div class="selector-roles">${opcionesRol}</div>${bloqueGradoProfesor}
           <div id="error-form-usuario" style="margin-top:8px;"></div>
           <div class="fila-botones" style="margin-top:16px;"><button type="button" class="boton boton-fantasma" onclick="cerrarFormUsuario()">Cancelar</button><button type="submit" class="boton boton-primario">${usuarioEnEdicion ? 'Actualizar' : 'Crear'}</button></div>
         </form>` : ''}
@@ -1055,7 +1053,7 @@ function plantillaUsuarios() {
           <div style="display:flex;width:100%;">
             <div class="tarjeta-unidad-cuerpo">
               <p class="tarjeta-unidad-nombre">${esc(u.nombre)}</p>
-              <p class="tarjeta-unidad-rango">usuario: ${esc(u.usuario)} · ${ROLES[u.rol]?.label || u.rol}${u.rol === 'profesor' && u.grado ? ` · Grado: <b>${esc(u.grado)}</b>` : ''}</p>
+              <p class="tarjeta-unidad-rango">usuario: ${esc(u.usuario)} · ${ROLES[u.rol]?.label \vert{}\vert{} u.rol}${u.rol === 'profesor' && u.grado ? ` · Grado: <b>${esc(u.grado)}</b>` : ''}</p>
             </div>
             <div class="tarjeta-unidad-acciones">
               <button class="boton-icono" onclick="abrirFormUsuario('${u.id}')" title="Editar"><i data-lucide="pencil"></i></button>
@@ -1193,7 +1191,7 @@ function plantillaReporte() {
         <div class="reporte-encabezado">
           <p class="reporte-colegio">${esc(nombreColegio)}</p>
           <h1 class="reporte-titulo">Plan de Actividades</h1>
-          <p class="reporte-unidad">${esc(unidadSeleccionadaTexto)} – ${esc(gradoSeleccionadoTexto)}</p>
+          <p class="reporte-unidad">${esc(unidadSeleccionadaTexto)} –${esc(gradoSeleccionadoTexto)}</p>
         </div>
         ${items.length === 0 ? `<p class="reporte-vacio">No hay actividades registradas para esta selección.</p>` : `
           <table class="tabla-reporte">
