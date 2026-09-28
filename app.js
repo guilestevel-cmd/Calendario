@@ -92,8 +92,6 @@ function esGradoGraduando(nombreGrado) {
   return !!g && (g.graduando === true || g.graduando === 'true');
 }
 
-// Una actividad puede tener varios "alcances" a la vez guardados en curso, separados por coma
-// (ej. "Profesores,GRADUANDOS"). Esta función decide si esa actividad debe verse para un grado dado.
 function actividadCubreGrado(a, gradoSeleccionado) {
   if (!a.curso || a.curso === '') return true;
   const alcances = String(a.curso).split(',').map(s => s.trim()).filter(Boolean);
@@ -105,7 +103,6 @@ function actividadCubreGrado(a, gradoSeleccionado) {
   });
 }
 
-// Texto legible para mostrar el alcance de una actividad (badges, reportes)
 function etiquetaCurso(curso) {
   if (!curso) return '';
   if (curso === 'TODOS') return 'Todos los grados';
@@ -120,7 +117,6 @@ function getEstadoDiaGrado(fechaStr, actividades, gradoSeleccionado) {
     return actividadCubreGrado(a, gradoSeleccionado);
   });
 
-  // CORRECCIÓN CLAVE: El evento solo cuenta como real si cubre específicamente al grado seleccionado
   const eventos = visibles.filter(a => {
     if (a.tipo !== 'evento') return false;
     if (gradoSeleccionado === 'TODOS') return true;
@@ -139,7 +135,6 @@ function getEstadoDiaGrado(fechaStr, actividades, gradoSeleccionado) {
   } else if (tieneEvento) {
     esta = ocupadas > 0 ? 'medio' : 'libre';
   } else {
-    // Días normales (capacidad 5): 'medio' solo a partir de 3 actividades (3 o 4 tareas)
     if (ocupadas >= 3) {
       esta = 'medio';
     } else {
@@ -204,7 +199,6 @@ async function iniciar() {
     if (estado.sesion && esRolGlobal(estado.sesion.rol)) {
       estado.gradoActivoCalendario = 'Profesores';
     } else {
-      // El profesor siempre debe elegir manualmente en qué grado va a trabajar.
       estado.gradoActivoCalendario = '';
     }
 
@@ -262,7 +256,6 @@ async function manejarEnvioLogin(ev) {
     if (esRolGlobal(estado.sesion.rol)) {
       estado.gradoActivoCalendario = 'Profesores';
     } else {
-      // El profesor siempre debe elegir manualmente en qué grado va a trabajar.
       estado.gradoActivoCalendario = '';
     }
 
@@ -437,7 +430,6 @@ async function manejarEnvioActividad(ev) {
 
   const actividadesActuales = actividadesUnidadActual();
   
-  // Validación estricta y consistente con getEstadoDiaGrado para el envío
   const delDia = actividadesActuales.filter(a => a.fecha === estado.diaSeleccionado);
   const visibles = delDia.filter(a => {
     if (estado.gradoActivoCalendario === 'TODOS') return true;
@@ -719,7 +711,6 @@ function plantillaCalendario() {
   if (esGlobal) {
     opcionesGrados += `<option value="TODOS"${estado.gradoActivoCalendario === 'TODOS' ? ' selected' : ''}>-- Todos los grados (General) --</option>`;
   } else {
-    // Si es un profesor con grado asignado por defecto, aseguramos que aparezca seleccionado
     opcionesGrados += `<option value="" disabled ${!estado.gradoActivoCalendario ? 'selected' : ''}>-- Seleccione un grado --</option>`;
   }
 
@@ -1119,9 +1110,6 @@ function plantillaReporte() {
     `<option value="todas"${estado.unidadReporteId === 'todas' ? ' selected' : ''}>Todas las unidades (General)</option>` +
     unidadesOrdenadas().map(u => `<option value="${u.id}"${u.id === estado.unidadReporteId ? ' selected' : ''}>${esc(u.nombre)}</option>`).join('');
 
-  // "Destino" del reporte:
-  //  - Roles globales (admin/comisión/dirección): catálogo COMPLETO de grados oficiales (como siempre fue).
-  //  - Profesor: únicamente "Profesores" y su propio grado asignado.
   const rolSesion = estado.sesion ? (estado.sesion.rol || '').toLowerCase() : '';
 
   let listaGradosUnicos;
