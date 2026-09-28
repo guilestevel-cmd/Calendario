@@ -126,9 +126,13 @@ function getEstadoDiaGrado(fechaStr, actividades, gradoSeleccionado) {
   const tieneEvento = eventos.length > 0;
   const capacidad = tieneEvento ? 2 : 5;
   const ocupadas = tareas.length;
+  
   let esta = 'libre';
-  if (ocupadas >= capacidad) esta = 'lleno';
-  else if (ocupadas >= Math.ceil(capacidad / 2)) esta = 'medio';
+  if (ocupadas >= capacidad) {
+    esta = 'lleno';
+  } else if (ocupadas > 0) {
+    esta = 'medio';
+  }
 
   return { delDiaVisible: visibles, eventos, tareas, tieneEvento, capacidad, ocupadas, estado: esta };
 }
