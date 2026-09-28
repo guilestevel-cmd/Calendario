@@ -124,18 +124,15 @@ function getEstadoDiaGrado(fechaStr, actividades, gradoSeleccionado) {
   const tareas = visibles.filter(a => a.tipo === 'tarea');
 
   const tieneEvento = eventos.length > 0;
-  // Capacidad: 2 si hay evento institucional real, 5 si es un día totalmente normal
   const capacidad = tieneEvento ? 2 : 5;
   const ocupadas = tareas.length;
   
   let esta = 'libre';
   if (ocupadas >= capacidad) {
     esta = 'lleno';
-  } else if (ocupadas >= 3 || (capacidad === 5 && ocupadas >= 3) || (capacidad === 2 && ocupadas >= 1)) {
-    // Se muestra medio cargado cuando tiene 3 o más actividades en días normales (capacidad 5)
-    esta = 'medio';
   } else if (ocupadas > 0) {
-    esta = 'medio';
+    // Si hay tareas pero no llena la capacidad, se marca como medio cargado
+    esta = (ocupadas >= Math.ceil(capacidad / 2)) ? 'medio' : 'medio';
   }
 
   return { delDiaVisible: visibles, eventos, tareas, tieneEvento, capacidad, ocupadas, estado: esta };
@@ -742,10 +739,10 @@ function plantillaCalendario() {
         const activo = enRango(d, unidad.fechaInicio, unidad.fechaFin);
         if (!activo) return `<div class="celda-dia celda-inactiva"><span class="numero-dia">${d.getDate()}</span></div>`;
         
-        const info = getEstadoDiaGrado(fechaStr, actividadesUnidad, estado.gradoActivoCalendario);
+       const info = getEstadoDiaGrado(fechaStr, actividadesUnidad, estado.gradoActivoCalendario);
         return `
           <button class="celda-dia celda-${info.estado}${fechaStr === hoy ? ' celda-hoy' : ''}" onclick="abrirDia('${fechaStr}')">
-            ${info.tieneEvento ? `<i data-lucide="flag" class="marca-evento" style="width:11px;height:11px"></i>` : ''}
+            ${info.tieneEvento ? `<i data-lucide="flag" class="marca-evento" style="width:11px;height:11px;color:#0f2b27;position:absolute;top:6px;right:6px;"></i>` : ''}
             <span class="numero-dia">${d.getDate()}</span>
             ${(info.ocupadas > 0 || info.tieneEvento) ? `<span class="conteo-dia">${info.ocupadas}/${info.capacidad}</span>` : ''}
           </button>`;
