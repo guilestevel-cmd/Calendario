@@ -371,11 +371,11 @@ body {
 }
 
 .celda-vacia {
-  min-height: 70px;
+  height: 78px;
 }
 
 .celda-dia {
-  min-height: 75px;
+  height: 78px;
   background-color: #ffffff;
   border: 1px solid var(--borde);
   border-radius: 8px;
@@ -388,6 +388,7 @@ body {
   box-sizing: border-box;
   position: relative;
   text-align: left;
+  overflow: hidden;
 }
 
 .celda-dia:hover {
@@ -427,6 +428,32 @@ body {
   top: 6px;
   right: 6px;
   color: var(--primario);
+}
+
+.previa-dia {
+  width: 100%;
+  overflow: hidden;
+}
+
+.previa-linea {
+  font-size: 8.5px;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.previa-evento {
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.previa-tarea {
+  color: #52655f;
+}
+
+.previa-mas {
+  color: #94a3b8;
 }
 
 /* COLORES DE DISPONIBILIDAD EXACTOS: Verde, Naranja, Rojo */
@@ -914,8 +941,16 @@ button:active, .boton:active, .barra-item:active, .celda-dia:active, .opcion-tip
   }
 
   .celda-dia {
-    min-height: 52px !important;
+    height: 64px !important;
     padding: 4px !important;
+  }
+
+  .previa-linea {
+    font-size: 7.5px !important;
+  }
+
+  .previa-dia .previa-linea:nth-child(n+2) {
+    display: none;
   }
 
   .numero-dia {
