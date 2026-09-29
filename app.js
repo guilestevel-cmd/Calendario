@@ -758,10 +758,10 @@ function plantillaCalendario() {
         const tituloRestantes = [...info.eventos, ...info.tareas].slice(lineasPrevia.length).map(a => (a.curso ? a.curso + ' - ' : '') + a.titulo).join('\n');
 
         return `
-          <button class="celda-dia celda-${info.estado}${fechaStr === hoy ? ' celda-hoy' : ''}" onclick="abrirDia('${fechaStr}')">
+          <button class="celda-dia celda-${info.estado}${fechaStr === hoy ? ' celda-hoy' : ''}" style="min-width:0;overflow:hidden;" onclick="abrirDia('${fechaStr}')">
             ${info.tieneEvento ? `<i data-lucide="flag" class="marca-evento" style="width:11px;height:11px"></i>` : ''}
             <span class="numero-dia">${d.getDate()}</span>
-            <div style="width:100%;overflow:hidden;">
+            <div style="width:100%;min-width:0;overflow:hidden;">
               ${lineasPrevia.join('')}
               ${restantesPrevia > 0 ? `<div title="${esc(tituloRestantes)}" style="font-size:8.5px;line-height:1.25;color:#94a3b8;">+${restantesPrevia} más</div>` : ''}
             </div>
