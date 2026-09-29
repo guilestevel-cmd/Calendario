@@ -747,23 +747,23 @@ function plantillaCalendario() {
 
         const lineasPrevia = [];
         info.eventos.slice(0, 2).forEach(a => lineasPrevia.push(
-          `<div title="${esc(a.titulo)}" style="font-size:8.5px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#1d4ed8;font-weight:600;">${esc(a.titulo)}</div>`
+          `<div title="${esc(a.titulo)}" class="previa-linea previa-evento">${esc(a.titulo)}</div>`
         ));
         if (lineasPrevia.length < 2) {
           info.tareas.slice(0, 2 - lineasPrevia.length).forEach(a => lineasPrevia.push(
-            `<div title="${a.curso ? esc(a.curso) + ' - ' : ''}${esc(a.titulo)}" style="font-size:8.5px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#52655f;">${a.curso ? `<b>${esc(a.curso)}</b> - ` : ''}${esc(a.titulo)}</div>`
+            `<div title="${a.materia ? esc(a.materia) + ' - ' : ''}${esc(a.titulo)}" class="previa-linea previa-tarea">${a.materia ? `<b>${esc(a.materia)}</b> - ` : ''}${esc(a.titulo)}</div>`
           ));
         }
         const restantesPrevia = (info.eventos.length + info.tareas.length) - lineasPrevia.length;
-        const tituloRestantes = [...info.eventos, ...info.tareas].slice(lineasPrevia.length).map(a => (a.curso ? a.curso + ' - ' : '') + a.titulo).join('\n');
+        const tituloRestantes = [...info.eventos, ...info.tareas].slice(lineasPrevia.length).map(a => (a.materia ? a.materia + ' - ' : '') + a.titulo).join('\n');
 
         return `
-          <button class="celda-dia celda-${info.estado}${fechaStr === hoy ? ' celda-hoy' : ''}" style="min-width:0;overflow:hidden;" onclick="abrirDia('${fechaStr}')">
+          <button class="celda-dia celda-${info.estado}${fechaStr === hoy ? ' celda-hoy' : ''}" onclick="abrirDia('${fechaStr}')">
             ${info.tieneEvento ? `<i data-lucide="flag" class="marca-evento" style="width:11px;height:11px"></i>` : ''}
             <span class="numero-dia">${d.getDate()}</span>
-            <div style="width:100%;min-width:0;overflow:hidden;">
+            <div class="previa-dia">
               ${lineasPrevia.join('')}
-              ${restantesPrevia > 0 ? `<div title="${esc(tituloRestantes)}" style="font-size:8.5px;line-height:1.25;color:#94a3b8;">+${restantesPrevia} más</div>` : ''}
+              ${restantesPrevia > 0 ? `<div title="${esc(tituloRestantes)}" class="previa-linea previa-mas">+${restantesPrevia} más</div>` : ''}
             </div>
             ${(info.ocupadas > 0 || info.tieneEvento) ? `<span class="conteo-dia">${info.ocupadas}/${info.capacidad}</span>` : ''}
           </button>`;
@@ -1242,3 +1242,51 @@ function plantillaConfirmar() {
 }
 
 document.addEventListener('DOMContentLoaded', iniciar);
+
+// Mantener presionado sobre una línea de vista previa (evento/tarea) muestra el texto completo
+// en una burbuja flotante, sin quitar el toque normal que abre el día.
+(function habilitarPreviaTactil() {
+  let temporizador = null;
+  let disparado = false;
+
+  function ocultarBurbuja() {
+    const b = document.getElementById('burbuja-previa-tactil');
+    if (b) b.remove();
+  }
+
+  function mostrarBurbuja(el) {
+    ocultarBurbuja();
+    const texto = el.getAttribute('title');
+    if (!texto) return;
+    const burbuja = document.createElement('div');
+    burbuja.id = 'burbuja-previa-tactil';
+    burbuja.textContent = texto;
+    burbuja.style.cssText = 'position:fixed;z-index:9999;background:#1e293b;color:#fff;padding:8px 12px;border-radius:8px;font-size:12.5px;max-width:230px;line-height:1.35;box-shadow:0 6px 16px rgba(0,0,0,0.3);pointer-events:none;';
+    document.body.appendChild(burbuja);
+    const rect = el.getBoundingClientRect();
+    let top = rect.top - burbuja.offsetHeight - 8;
+    if (top < 8) top = rect.bottom + 8;
+    let left = Math.min(Math.max(8, rect.left), window.innerWidth - burbuja.offsetWidth - 8);
+    burbuja.style.top = top + 'px';
+    burbuja.style.left = left + 'px';
+    if (navigator.vibrate) navigator.vibrate(12);
+    setTimeout(ocultarBurbuja, 2500);
+  }
+
+  document.addEventListener('touchstart', (e) => {
+    const el = e.target.closest('.previa-linea');
+    if (!el) return;
+    disparado = false;
+    temporizador = setTimeout(() => { disparado = true; mostrarBurbuja(el); }, 480);
+  }, { passive: true });
+
+  document.addEventListener('touchmove', () => { clearTimeout(temporizador); }, { passive: true });
+
+  document.addEventListener('touchend', (e) => {
+    clearTimeout(temporizador);
+    if (disparado) { e.preventDefault(); e.stopPropagation(); }
+    disparado = false;
+  }, { passive: false });
+
+  document.addEventListener('scroll', ocultarBurbuja, true);
+})();
