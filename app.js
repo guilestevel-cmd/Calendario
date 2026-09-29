@@ -744,10 +744,27 @@ function plantillaCalendario() {
         if (!activo) return `<div class="celda-dia celda-inactiva"><span class="numero-dia">${d.getDate()}</span></div>`;
         
         const info = getEstadoDiaGrado(fechaStr, actividadesUnidad, estado.gradoActivoCalendario);
+
+        const lineasPrevia = [];
+        info.eventos.slice(0, 2).forEach(a => lineasPrevia.push(
+          `<div title="${esc(a.titulo)}" style="font-size:8.5px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#1d4ed8;font-weight:600;">${esc(a.titulo)}</div>`
+        ));
+        if (lineasPrevia.length < 2) {
+          info.tareas.slice(0, 2 - lineasPrevia.length).forEach(a => lineasPrevia.push(
+            `<div title="${a.curso ? esc(a.curso) + ' - ' : ''}${esc(a.titulo)}" style="font-size:8.5px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#52655f;">${a.curso ? `<b>${esc(a.curso)}</b> - ` : ''}${esc(a.titulo)}</div>`
+          ));
+        }
+        const restantesPrevia = (info.eventos.length + info.tareas.length) - lineasPrevia.length;
+        const tituloRestantes = [...info.eventos, ...info.tareas].slice(lineasPrevia.length).map(a => (a.curso ? a.curso + ' - ' : '') + a.titulo).join('\n');
+
         return `
           <button class="celda-dia celda-${info.estado}${fechaStr === hoy ? ' celda-hoy' : ''}" onclick="abrirDia('${fechaStr}')">
             ${info.tieneEvento ? `<i data-lucide="flag" class="marca-evento" style="width:11px;height:11px"></i>` : ''}
             <span class="numero-dia">${d.getDate()}</span>
+            <div style="width:100%;overflow:hidden;">
+              ${lineasPrevia.join('')}
+              ${restantesPrevia > 0 ? `<div title="${esc(tituloRestantes)}" style="font-size:8.5px;line-height:1.25;color:#94a3b8;">+${restantesPrevia} más</div>` : ''}
+            </div>
             ${(info.ocupadas > 0 || info.tieneEvento) ? `<span class="conteo-dia">${info.ocupadas}/${info.capacidad}</span>` : ''}
           </button>`;
       }).join('')}
