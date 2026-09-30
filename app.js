@@ -756,9 +756,13 @@ function plantillaCalendario() {
         }
         const restantesPrevia = (info.eventos.length + info.tareas.length) - lineasPrevia.length;
         const tituloRestantes = [...info.eventos, ...info.tareas].slice(lineasPrevia.length).map(a => (a.materia ? a.materia + ' - ' : '') + a.titulo).join('\n');
+        const resumenDia = [
+          ...info.eventos.map(a => `🚩 ${a.titulo}`),
+          ...info.tareas.map(a => `${a.materia ? a.materia + ' - ' : ''}${a.titulo}`),
+        ].join('\n');
 
         return `
-          <button class="celda-dia celda-${info.estado}${fechaStr === hoy ? ' celda-hoy' : ''}" onclick="abrirDia('${fechaStr}')">
+          <button class="celda-dia celda-${info.estado}${fechaStr === hoy ? ' celda-hoy' : ''}" onclick="abrirDia('${fechaStr}')" data-resumen="${esc(resumenDia)}">
             ${info.tieneEvento ? `<i data-lucide="flag" class="marca-evento" style="width:11px;height:11px"></i>` : ''}
             <span class="numero-dia">${d.getDate()}</span>
             <div class="previa-dia">
@@ -1256,26 +1260,26 @@ document.addEventListener('DOMContentLoaded', iniciar);
 
   function mostrarBurbuja(el) {
     ocultarBurbuja();
-    const texto = el.getAttribute('title');
+    const texto = el.getAttribute('data-resumen');
     if (!texto) return;
     const burbuja = document.createElement('div');
     burbuja.id = 'burbuja-previa-tactil';
+    burbuja.style.cssText = 'position:fixed;z-index:9999;background:#1e293b;color:#fff;padding:10px 14px;border-radius:10px;font-size:12.5px;max-width:250px;line-height:1.5;white-space:pre-line;box-shadow:0 6px 16px rgba(0,0,0,0.3);pointer-events:none;';
     burbuja.textContent = texto;
-    burbuja.style.cssText = 'position:fixed;z-index:9999;background:#1e293b;color:#fff;padding:8px 12px;border-radius:8px;font-size:12.5px;max-width:230px;line-height:1.35;box-shadow:0 6px 16px rgba(0,0,0,0.3);pointer-events:none;';
     document.body.appendChild(burbuja);
     const rect = el.getBoundingClientRect();
-    let top = rect.top - burbuja.offsetHeight - 8;
-    if (top < 8) top = rect.bottom + 8;
+    let top = rect.top - burbuja.offsetHeight - 10;
+    if (top < 8) top = rect.bottom + 10;
     let left = Math.min(Math.max(8, rect.left), window.innerWidth - burbuja.offsetWidth - 8);
-    burbuja.style.top = top + 'px';
+    burbuja.style.top = Math.min(top, window.innerHeight - burbuja.offsetHeight - 8) + 'px';
     burbuja.style.left = left + 'px';
     if (navigator.vibrate) navigator.vibrate(12);
-    setTimeout(ocultarBurbuja, 2500);
+    setTimeout(ocultarBurbuja, 3000);
   }
 
   document.addEventListener('touchstart', (e) => {
-    const el = e.target.closest('.previa-linea');
-    if (!el) return;
+    const el = e.target.closest('.celda-dia');
+    if (!el || !el.getAttribute('data-resumen')) return;
     disparado = false;
     temporizador = setTimeout(() => { disparado = true; mostrarBurbuja(el); }, 480);
   }, { passive: true });
@@ -1287,6 +1291,11 @@ document.addEventListener('DOMContentLoaded', iniciar);
     if (disparado) { e.preventDefault(); e.stopPropagation(); }
     disparado = false;
   }, { passive: false });
+
+  // Evita que el navegador muestre su propio menú de selección/copiar al mantener presionado
+  document.addEventListener('contextmenu', (e) => {
+    if (e.target.closest('.celda-dia')) e.preventDefault();
+  });
 
   document.addEventListener('scroll', ocultarBurbuja, true);
 })();
