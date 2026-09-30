@@ -389,6 +389,9 @@ body {
   position: relative;
   text-align: left;
   overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .celda-dia:hover {
