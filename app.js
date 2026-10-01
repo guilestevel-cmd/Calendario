@@ -663,6 +663,9 @@ function plantillaBarra() {
             <i data-lucide="${it.icono}"></i><span>${it.label}</span>
           </button>`).join('')}
       </nav>
+      <button id="btn-instalar-app" class="barra-item" style="display:none;" onclick="instalarApp()">
+        <i data-lucide="download"></i><span>Instalar App</span>
+      </button>
       <div class="barra-usuario">
         <div class="barra-usuario-info">
           <i data-lucide="${rol ? rol.icono : 'user'}"></i>
@@ -1246,6 +1249,37 @@ function plantillaConfirmar() {
 }
 
 document.addEventListener('DOMContentLoaded', iniciar);
+
+// --- Soporte de instalación como App (PWA) ---
+let _deferredInstallPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  _deferredInstallPrompt = e;
+});
+
+window.addEventListener('appinstalled', () => {
+  _deferredInstallPrompt = null;
+});
+
+function instalarApp() {
+  if (!_deferredInstallPrompt) return;
+  _deferredInstallPrompt.prompt();
+  _deferredInstallPrompt.userChoice.finally(() => { _deferredInstallPrompt = null; });
+}
+
+// El botón "Instalar App" se recrea en cada render(), así que se revisa
+// periódicamente si el navegador ya avisó que se puede instalar.
+setInterval(() => {
+  const btn = document.getElementById('btn-instalar-app');
+  if (btn) btn.style.display = _deferredInstallPrompt ? 'flex' : 'none';
+}, 800);
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
 
 // Mantener presionado sobre una línea de vista previa (evento/tarea) muestra el texto completo
 // en una burbuja flotante, sin quitar el toque normal que abre el día.
